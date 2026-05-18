@@ -309,14 +309,26 @@ function scanOpenClaw(): Category {
   } catch { /* skip */ }
 
   const gwAuth = ocConfig?.gateway?.auth
-  const tokenOk = gwAuth?.mode === 'token' && (gwAuth?.token ?? '').trim().length > 0
-  const passwordOk = gwAuth?.mode === 'password' && (gwAuth?.password ?? '').trim().length > 0
+  const isCredentialPresent = (v: unknown): boolean => {
+    if (typeof v === 'string') return v.trim().length > 0
+    if (typeof v === 'object' && v !== null) {
+      const ref = v as Record<string, unknown>
+      return typeof ref.source === 'string' && ref.source.length > 0
+    }
+    return false
+  }
+  const tokenOk = gwAuth?.mode === 'token' && isCredentialPresent(gwAuth?.token)
+  const passwordOk = gwAuth?.mode === 'password' && isCredentialPresent(gwAuth?.password)
   const authOk = tokenOk || passwordOk
   checks.push({
     id: 'gateway_auth',
     name: 'Gateway authentication',
     status: authOk ? 'pass' : 'fail',
-    detail: tokenOk ? 'Token auth enabled' : passwordOk ? 'Password auth enabled' : `Auth mode: ${gwAuth?.mode || 'none'} (credential required)`,
+    detail: tokenOk
+      ? (typeof gwAuth?.token === 'object' ? 'Token auth enabled (resolved at runtime)' : 'Token auth enabled')
+      : passwordOk
+      ? (typeof gwAuth?.password === 'object' ? 'Password auth enabled (resolved at runtime)' : 'Password auth enabled')
+      : `Auth mode: ${gwAuth?.mode || 'none'} (credential required)`,
     fix: !authOk ? 'Set gateway.auth.mode to "token" with gateway.auth.token, or "password" with gateway.auth.password' : '',
     severity: 'critical',
   })
