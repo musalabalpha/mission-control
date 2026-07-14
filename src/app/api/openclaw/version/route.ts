@@ -5,10 +5,16 @@ const GITHUB_RELEASES_URL =
   'https://api.github.com/repos/openclaw/openclaw/releases/latest'
 
 // `installed` is read live via `openclaw --version` and changes the moment the
-// user updates. Never cache this route, or the banner keeps showing a stale
-// "installed" version (and a phantom "update available") for up to an hour after
-// an update. The GitHub `latest` lookup stays cheap via its own `revalidate`.
-export const dynamic = 'force-dynamic'
+// user updates. Keep the route dynamic so it re-reads every request, or the
+// banner shows a stale "installed" version (and a phantom "update available")
+// for up to an hour after an update.
+//
+// Use `revalidate = 0` (not `dynamic = 'force-dynamic'`): force-dynamic also
+// sets fetchCache to force-no-store, which would kill the GitHub `latest`
+// fetch's own `revalidate: 3600` below and hammer GitHub's unauth API
+// (~60 req/h/IP → 429s). `revalidate = 0` makes the route dynamic while letting
+// that inner fetch keep its own cache.
+export const revalidate = 0
 
 function compareSemver(a: string, b: string): number {
   const pa = a.replace(/^v/, '').split('.').map(Number)
