@@ -43,8 +43,10 @@ interface AgentRow {
   config: string | null
 }
 
-// Detection files — order matters: first found wins for role extraction
-const IDENTITY_FILES = ['soul.md', 'AGENT.md', 'agent.md', 'identity.md', 'SKILL.md']
+// Detection files — order matters: first found wins for role extraction.
+// NOTE: SKILL.md is deliberately NOT an identity file. A skill is not an agent;
+// including it made every skill dir (e.g. ~/.hermes/skills/*) sync as a bogus agent.
+const IDENTITY_FILES = ['soul.md', 'AGENT.md', 'agent.md', 'identity.md']
 const CONFIG_FILES = ['config.json', 'agent.json']
 const ALL_MARKERS = [...IDENTITY_FILES, ...CONFIG_FILES]
 
@@ -99,11 +101,13 @@ function extractRole(content: string): string {
 
 function getLocalAgentRoots(): string[] {
   const home = homedir()
+  // Only real agent-definition roots. ~/.hermes/skills is a SKILL taxonomy,
+  // not agents — scanning it synced ~20 skills (higgsfield-*, computer-use,
+  // dogfood, yuanbao…) as bogus offline agents. Excluded on purpose.
   return [
     join(home, '.agents'),
     join(home, '.codex', 'agents'),
     join(home, '.claude', 'agents'),
-    join(home, '.hermes', 'skills'),
   ]
 }
 
@@ -258,8 +262,21 @@ export async function syncLocalAgents(): Promise<{ ok: boolean; message: string 
     const markRemovedStmt = db.prepare(`
       UPDATE agents SET status = 'offline', updated_at = ? WHERE id = ?
     `)
+    // One-time hygiene: purge rows that a prior version of this sync created by
+    // mis-scanning ~/.hermes/skills as agents (higgsfield-*, computer-use,
+    // dogfood, yuanbao…). Precise by workspace_path, so it only ever hits that
+    // legacy skills path — never ~/.claude/agents or ~/.codex/agents. Idempotent:
+    // a no-op once cleaned. ponytail: runs every sync; cost is one cheap DELETE.
+    const purgeSkillRowsStmt = db.prepare(`
+      DELETE FROM agents WHERE source = 'local' AND workspace_path LIKE '%/.hermes/skills/%'
+    `)
+    let purged = 0
 
     db.transaction(() => {
+      purged = purgeSkillRowsStmt.run().changes
+      for (const name of [...dbMap.keys()]) {
+        if (dbMap.get(name)!.workspace_path?.includes('/.hermes/skills/')) dbMap.delete(name)
+      }
       // Disk → DB: additions and changes
       for (const [name, disk] of diskMap) {
         const existing = dbMap.get(name)
@@ -283,13 +300,13 @@ export async function syncLocalAgents(): Promise<{ ok: boolean; message: string 
       }
     })()
 
-    const msg = `Local agent sync: ${created} added, ${updated} updated, ${removed} marked offline (${diskAgents.length} on disk)`
-    if (created > 0 || updated > 0 || removed > 0) {
+    const msg = `Local agent sync: ${created} added, ${updated} updated, ${removed} marked offline, ${purged} skill-rows purged (${diskAgents.length} on disk)`
+    if (created > 0 || updated > 0 || removed > 0 || purged > 0) {
       logger.info(msg)
       logAuditEvent({
         action: 'local_agent_sync',
         actor: 'scheduler',
-        detail: { created, updated, removed, total: diskAgents.length },
+        detail: { created, updated, removed, purged, total: diskAgents.length },
       })
     }
     return { ok: true, message: msg }
