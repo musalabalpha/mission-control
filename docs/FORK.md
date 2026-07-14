@@ -37,4 +37,10 @@ Si un cherry-pick toca estos archivos, se resuelve a favor nuestro:
 - Deploy: `pnpm build` → `launchctl kickstart -k gui/501/com.helix.mission-control` → smoke test en :8443.
 - Revertir un deploy: `git checkout <commit-anterior>` + rebuild + kickstart.
 
-Último sync con upstream: v2.1.0 (jul-2026).
+## Registro de syncs
+
+- **v2.1.0** (jul-2026) — sync base del fork.
+- **jul-2026 (Fase 0, HLX-336)** — cherry-picks selectivos de `upstream/main` (deps-dev, sin tocar territorio propio):
+  - `@types/node` 22.20.0 → 26.0.1 (upstream #761 / `24fc59e`)
+  - `jsdom` 26.1.0 → 29.1.1 (upstream #764 / `c96c9da`)
+  - Gate post-sync: `pnpm test:all` verde antes de deploy.
