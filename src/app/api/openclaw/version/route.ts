@@ -4,6 +4,12 @@ import { runOpenClaw } from '@/lib/command'
 const GITHUB_RELEASES_URL =
   'https://api.github.com/repos/openclaw/openclaw/releases/latest'
 
+// `installed` is read live via `openclaw --version` and changes the moment the
+// user updates. Never cache this route, or the banner keeps showing a stale
+// "installed" version (and a phantom "update available") for up to an hour after
+// an update. The GitHub `latest` lookup stays cheap via its own `revalidate`.
+export const dynamic = 'force-dynamic'
+
 function compareSemver(a: string, b: string): number {
   const pa = a.replace(/^v/, '').split('.').map(Number)
   const pb = b.replace(/^v/, '').split('.').map(Number)
@@ -16,7 +22,7 @@ function compareSemver(a: string, b: string): number {
   return 0
 }
 
-const headers = { 'Cache-Control': 'public, max-age=3600' }
+const headers = { 'Cache-Control': 'no-store' }
 
 export async function GET() {
   let installed: string | null = null
