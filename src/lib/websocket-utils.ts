@@ -62,6 +62,7 @@ export const NON_RETRYABLE_ERROR_CODES = new Set<string>([
   ConnectErrorDetailCodes.AUTH_PASSWORD_MISSING,
   ConnectErrorDetailCodes.AUTH_PASSWORD_MISMATCH,
   ConnectErrorDetailCodes.AUTH_RATE_LIMITED,
+  ConnectErrorDetailCodes.AUTH_TOKEN_MISMATCH,
   ConnectErrorDetailCodes.ORIGIN_NOT_ALLOWED,
   ConnectErrorDetailCodes.DEVICE_SIGNATURE_INVALID,
 ])
