@@ -109,7 +109,8 @@ export function useWebSocket() {
       normalized.includes('invalid connect params') ||
       normalized.includes('/client/id') ||
       normalized.includes('auth rate limit') ||
-      normalized.includes('rate limited')
+      normalized.includes('rate limited') ||
+      normalized.includes('token mismatch')
     )
   }, [])
 
@@ -136,6 +137,16 @@ export function useWebSocket() {
       return 'Gateway authentication is rate limited. Wait briefly, then reconnect.'
     }
     return 'Gateway handshake failed. Check gateway control UI origin and device identity settings, then reconnect.'
+  }, [])
+
+  const shouldSuppressWebSocketError = useCallback((message: string): boolean => {
+    const now = Date.now()
+    const previous = lastWebSocketErrorRef.current
+    if (previous && previous.message === message && now - previous.at < ERROR_LOG_DEDUPE_MS) {
+      return true
+    }
+    lastWebSocketErrorRef.current = { message, at: now }
+    return false
   }, [])
 
   // Generate unique request ID
@@ -443,13 +454,18 @@ export function useWebSocket() {
 
       const nonRetryable = isNonRetryableGatewayError(rawMessage, frame.error)
 
-      addLog({
-        id: nonRetryable ? `gateway-handshake-${rawMessage}` : `error-${Date.now()}`,
-        timestamp: Date.now(),
-        level: 'error',
-        source: 'gateway',
-        message: `Gateway error: ${rawMessage}${nonRetryable ? ` — ${help}` : ''}`
-      })
+      // ponytail: dedupe by message via the existing shouldSuppressWebSocketError
+      // window (HLX-324) — without it, each reconnect attempt logged a fresh
+      // `error-${Date.now()}` entry for the identical handshake failure.
+      if (!shouldSuppressWebSocketError(rawMessage)) {
+        addLog({
+          id: nonRetryable ? `gateway-handshake-${rawMessage}` : `error-${Date.now()}`,
+          timestamp: Date.now(),
+          level: 'error',
+          source: 'gateway',
+          message: `Gateway error: ${rawMessage}${nonRetryable ? ` — ${help}` : ''}`
+        })
+      }
 
       if (nonRetryable) {
         nonRetryableErrorRef.current = rawMessage
@@ -646,6 +662,7 @@ export function useWebSocket() {
     stopHeartbeat,
     isNonRetryableGatewayError,
     getGatewayErrorHelp,
+    shouldSuppressWebSocketError,
     addExecApproval,
     updateExecApproval,
   ])
@@ -661,16 +678,6 @@ export function useWebSocket() {
     parsed.protocol = parsed.protocol === 'https:' ? 'wss:' : parsed.protocol === 'http:' ? 'ws:' : parsed.protocol
     parsed.hash = ''
     return parsed.toString().replace(/\/$/, '').replace('/?', '?')
-  }, [])
-
-  const shouldSuppressWebSocketError = useCallback((message: string): boolean => {
-    const now = Date.now()
-    const previous = lastWebSocketErrorRef.current
-    if (previous && previous.message === message && now - previous.at < ERROR_LOG_DEDUPE_MS) {
-      return true
-    }
-    lastWebSocketErrorRef.current = { message, at: now }
-    return false
   }, [])
 
   const connect = useCallback((url: string, token?: string) => {

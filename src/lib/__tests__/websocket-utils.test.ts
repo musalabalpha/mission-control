@@ -87,16 +87,13 @@ describe('isNonRetryableErrorCode', () => {
       'AUTH_PASSWORD_MISSING',
       'AUTH_PASSWORD_MISMATCH',
       'AUTH_RATE_LIMITED',
+      'AUTH_TOKEN_MISMATCH',
       'ORIGIN_NOT_ALLOWED',
       'DEVICE_SIGNATURE_INVALID',
     ]
     for (const code of nonRetryable) {
       expect(isNonRetryableErrorCode(code)).toBe(true)
     }
-  })
-
-  it('returns false for AUTH_TOKEN_MISMATCH (retryable)', () => {
-    expect(isNonRetryableErrorCode('AUTH_TOKEN_MISMATCH')).toBe(false)
   })
 
   it('returns false for unknown codes', () => {
@@ -238,7 +235,7 @@ describe('ConnectErrorDetailCodes', () => {
     }
   })
 
-  it('NON_RETRYABLE_ERROR_CODES does not include AUTH_TOKEN_MISMATCH', () => {
-    expect(NON_RETRYABLE_ERROR_CODES.has('AUTH_TOKEN_MISMATCH')).toBe(false)
+  it('NON_RETRYABLE_ERROR_CODES includes AUTH_TOKEN_MISMATCH (HLX-324: prevents reconnect-storm on token mismatch)', () => {
+    expect(NON_RETRYABLE_ERROR_CODES.has('AUTH_TOKEN_MISMATCH')).toBe(true)
   })
 })
