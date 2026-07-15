@@ -174,4 +174,12 @@ describe('direct session API coverage', () => {
     expect(hermesRoute.match(/'runtime_configuration'/g)).toHaveLength(2)
     expect(claudeTasksRoute).toContain("'runtime_tasks'")
   })
+
+  it('guards deployment-global runtime configuration operations', () => {
+    const cronRoute = readFileSync(join(process.cwd(), 'src/app/api/cron/route.ts'), 'utf8')
+    const integrationsRoute = readFileSync(join(process.cwd(), 'src/app/api/integrations/route.ts'), 'utf8')
+
+    expect(cronRoute.match(/'runtime_configuration'/g)).toHaveLength(2)
+    expect(integrationsRoute.match(/'runtime_configuration'/g)).toHaveLength(4)
+  })
 })
