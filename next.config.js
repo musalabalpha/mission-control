@@ -14,6 +14,15 @@ const nextConfig = {
     // deleted — blocking the dirty-tree check and breaking self-update.
     '/*': ['./.data/**/*', './.git/**/*'],
   },
+  outputFileTracingIncludes: {
+    // Force Next's own image optimizer into the standalone bundle. The pnpm
+    // file-tracer is non-deterministic about this conditional require and has
+    // shipped standalone builds missing `./image-optimizer`, which crashes the
+    // `/_next/image` handler (MODULE_NOT_FOUND) and makes runtime tiles render
+    // as "disconnected" even when the backend is healthy. Explicit include
+    // pins it so every future `pnpm build` bundles it.
+    '/**': ['./node_modules/next/dist/server/image-optimizer.js'],
+  },
   turbopack: {
     root: __dirname,
   },
