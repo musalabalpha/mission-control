@@ -29,7 +29,6 @@ import { MultiGatewayPanel } from '@/components/panels/multi-gateway-panel'
 import { GatewayControlPanel } from '@/components/panels/gateway-control-panel'
 import { SuperAdminPanel } from '@/components/panels/super-admin-panel'
 import { OfficePanel } from '@/components/panels/office-panel'
-import { GitHubSyncPanel } from '@/components/panels/github-sync-panel'
 import { GitHubPrsPanel } from '@/components/panels/github-prs-panel'
 import { ArtifactsPanel } from '@/components/panels/artifacts-panel'
 import { QuestsPanel } from '@/components/panels/quests-panel'
@@ -634,12 +633,10 @@ function ContentRouter({ tab }: { tab: string }) {
     case 'super-admin':
       return <SuperAdminPanel />
     case 'github':
-      return (
-        <>
-          <GitHubPrsPanel />
-          <GitHubSyncPanel />
-        </>
-      )
+      // HLX-291: solo el panel de PRs. El sync issues→tasks upstream queda
+      // desmontado (no borrado, para no chocar en merges con upstream): las
+      // tareas viven en Linear, no en GitHub Issues.
+      return <GitHubPrsPanel />
     case 'artifacts':
       return <ArtifactsPanel />
     case 'quests':
