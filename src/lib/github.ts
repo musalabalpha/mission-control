@@ -362,10 +362,25 @@ export interface CheckSummary {
  */
 export async function fetchCheckSummary(repo: string, ref: string): Promise<CheckSummary | null> {
   const res = await githubFetch(`/repos/${repo}/commits/${ref}/check-runs?per_page=50`)
-  if (!res.ok) return null
+  // Fine-grained PAT sin permiso Checks (HLX-291): la API responde 403; caer a
+  // workflow runs de Actions, que cubre lo mismo para repos con CI en Actions.
+  if (!res.ok) return fetchActionsRunSummary(repo, ref)
   const data = await res.json()
   const runs: Array<{ status: string; conclusion: string | null }> = data.check_runs ?? []
   if (runs.length === 0) return null
+  return summarizeRuns(runs)
+}
+
+async function fetchActionsRunSummary(repo: string, ref: string): Promise<CheckSummary | null> {
+  const res = await githubFetch(`/repos/${repo}/actions/runs?head_sha=${encodeURIComponent(ref)}&per_page=50`)
+  if (!res.ok) return null
+  const data = await res.json()
+  const runs: Array<{ status: string; conclusion: string | null }> = data.workflow_runs ?? []
+  if (runs.length === 0) return null
+  return summarizeRuns(runs)
+}
+
+function summarizeRuns(runs: Array<{ status: string; conclusion: string | null }>): CheckSummary {
   const summary: CheckSummary = { passed: 0, failed: 0, pending: 0 }
   for (const run of runs) {
     if (run.status !== 'completed') summary.pending++
