@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { APP_VERSION } from '@/lib/version'
 import { getPluginNavItems } from '@/lib/plugins'
+import { apiFetch } from '@/lib/api-client'
 
 interface NavItem {
   id: string
@@ -254,7 +255,7 @@ export function NavRail() {
       <nav
         role="navigation"
         aria-label="Main navigation"
-        className={`hidden md:flex flex-col bg-gradient-to-b from-card to-background border-r border-border shrink-0 transition-all duration-200 ease-in-out ${
+        className={`hidden md:flex flex-col bg-linear-to-b from-card to-background border-r border-border shrink-0 transition-all duration-200 ease-in-out ${
           sidebarExpanded ? 'w-[220px]' : 'w-14'
         }`}
       >
@@ -450,7 +451,7 @@ export function NavRail() {
               href="https://builderz.dev"
               target="_blank"
               rel="noopener noreferrer"
-              className="block rounded-lg border border-void-cyan/20 bg-gradient-to-br from-void-cyan/5 to-transparent hover:from-void-cyan/10 hover:border-void-cyan/40 transition-all duration-200 p-2 group"
+              className="block rounded-lg border border-void-cyan/20 bg-linear-to-br from-void-cyan/5 to-transparent hover:from-void-cyan/10 hover:border-void-cyan/40 transition-all duration-200 p-2 group"
             >
               <div className="flex items-center gap-1.5 mb-0.5">
                 <span className="text-2xs font-bold text-foreground group-hover:text-void-cyan transition-colors">builderz</span>
@@ -660,7 +661,7 @@ function MobileBottomSheet({ open, onClose, activeTab, navigateToPanel, groups }
   if (!open) return null
 
   return (
-    <div className="md:hidden fixed inset-0 z-[60]">
+    <div className="md:hidden fixed inset-0 z-60">
       {/* Backdrop */}
       <div
         className={`absolute inset-0 bg-black/40 transition-opacity duration-200 ${
@@ -963,7 +964,7 @@ function ContextSwitcher({ currentUser, isAdmin, isLocal, isConnected, tenants, 
                     setInterfaceMode('essential')
                     const essentialIds = new Set(['overview', 'agents', 'tasks', 'chat', 'activity', 'logs', 'settings'])
                     if (!essentialIds.has(activeTab)) navigateToPanel('overview')
-                    try { await fetch('/api/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ settings: { 'general.interface_mode': 'essential' } }) }) } catch {}
+                    try { await apiFetch('/api/settings', { method: 'PUT', body: JSON.stringify({ settings: { 'general.interface_mode': 'essential' } }) }) } catch {}
                   }}
                   className={`flex items-center gap-1 px-2 py-1 text-[11px] font-medium transition-colors ${
                     interfaceMode === 'essential'
@@ -978,7 +979,7 @@ function ContextSwitcher({ currentUser, isAdmin, isLocal, isConnected, tenants, 
                   onClick={async () => {
                     if (interfaceMode === 'full') return
                     setInterfaceMode('full')
-                    try { await fetch('/api/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ settings: { 'general.interface_mode': 'full' } }) }) } catch {}
+                    try { await apiFetch('/api/settings', { method: 'PUT', body: JSON.stringify({ settings: { 'general.interface_mode': 'full' } }) }) } catch {}
                   }}
                   className={`flex items-center gap-1 px-2 py-1 text-[11px] font-medium transition-colors border-l border-border ${
                     interfaceMode === 'full'
@@ -1022,7 +1023,9 @@ function ContextSwitcher({ currentUser, isAdmin, isLocal, isConnected, tenants, 
               <Button
                 variant="ghost"
                 onClick={async () => {
-                  await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
+                  try {
+                    await apiFetch('/api/auth/logout', { method: 'POST' })
+                  } catch {}
                   router.push('/login')
                 }}
                 className="w-full flex items-center gap-2 px-2 py-1.5 h-auto rounded-md text-xs justify-start text-red-400 hover:text-red-300 hover:bg-red-500/10"
@@ -1132,20 +1135,20 @@ function ContextSwitcher({ currentUser, isAdmin, isLocal, isConnected, tenants, 
                         onChange={(e) => setCreateForm(f => ({ ...f, username: e.target.value }))}
                         placeholder={tcs('usernamePlaceholder')}
                         autoFocus
-                        className="w-full h-7 px-2 rounded bg-secondary border border-border text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50"
+                        className="w-full h-7 px-2 rounded bg-secondary border border-border text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-hidden focus:border-primary/50"
                       />
                       <input
                         value={createForm.display_name}
                         onChange={(e) => setCreateForm(f => ({ ...f, display_name: e.target.value }))}
                         placeholder={tcs('displayNamePlaceholder')}
-                        className="w-full h-7 px-2 rounded bg-secondary border border-border text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50"
+                        className="w-full h-7 px-2 rounded bg-secondary border border-border text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-hidden focus:border-primary/50"
                       />
                       {!isLocal && (
                         <input
                           value={createForm.gateway_port}
                           onChange={(e) => setCreateForm(f => ({ ...f, gateway_port: e.target.value }))}
                           placeholder={tcs('gatewayPortPlaceholder')}
-                          className="w-full h-7 px-2 rounded bg-secondary border border-border text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50"
+                          className="w-full h-7 px-2 rounded bg-secondary border border-border text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-hidden focus:border-primary/50"
                         />
                       )}
                       {/* Tool installation checkboxes */}
@@ -1203,9 +1206,9 @@ function ContextSwitcher({ currentUser, isAdmin, isLocal, isConnected, tenants, 
                             setCreating(true)
                             setCreateError(null)
                             try {
-                              const res = await fetch('/api/super/os-users', {
+                              const res = await apiFetch<Response>('/api/super/os-users', {
                                 method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
+                                raw: true,
                                 body: JSON.stringify({
                                   username,
                                   display_name,
@@ -1221,8 +1224,8 @@ function ContextSwitcher({ currentUser, isAdmin, isLocal, isConnected, tenants, 
                               setCreateForm({ username: '', display_name: '', gateway_port: '', install_openclaw: true, install_claude: false, install_codex: false })
                               setCreateMode(false)
                               await Promise.all([fetchTenants(), fetchOsUsers()])
-                            } catch (e: any) {
-                              setCreateError(e?.message || 'Failed to create')
+                            } catch (error: unknown) {
+                              setCreateError(error instanceof Error ? error.message : 'Failed to create')
                             } finally {
                               setCreating(false)
                             }

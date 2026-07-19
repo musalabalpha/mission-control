@@ -2,6 +2,7 @@
 
 import { create } from 'zustand'
 import { subscribeWithSelector } from 'zustand/middleware'
+import { apiFetch } from '@/lib/api-client'
 import { MODEL_CATALOG } from '@/lib/models'
 
 export type JsonPrimitive = string | number | boolean | null
@@ -92,7 +93,8 @@ export interface ModelConfig {
   name: string
   provider: string
   description: string
-  costPer1k: number
+  /** USD per MILLION tokens (input/output) — mirrors ModelConfig in '@/lib/models' */
+  costPerMTok: { input: number; output: number }
 }
 
 // Mission Control Phase 2 Types
@@ -838,18 +840,18 @@ export const useMissionControl = create<MissionControlStore>()(
     setTenants: (tenants) => set({ tenants }),
     fetchTenants: async () => {
       try {
-        const res = await fetch('/api/super/tenants', { cache: 'no-store' })
-        if (!res.ok) return
-        const data = await res.json()
+        const data = await apiFetch<{ tenants?: Tenant[] }>('/api/super/tenants', {
+          cache: 'no-store',
+        })
         const tenantList = Array.isArray(data?.tenants) ? data.tenants : []
         set({ tenants: tenantList })
       } catch {}
     },
     fetchOsUsers: async () => {
       try {
-        const res = await fetch('/api/super/os-users', { cache: 'no-store' })
-        if (!res.ok) return
-        const data = await res.json()
+        const data = await apiFetch<{ users?: OsUser[] }>('/api/super/os-users', {
+          cache: 'no-store',
+        })
         set({ osUsers: Array.isArray(data?.users) ? data.users : [] })
       } catch {}
     },
@@ -876,9 +878,9 @@ export const useMissionControl = create<MissionControlStore>()(
     setProjects: (projects) => set({ projects }),
     fetchProjects: async () => {
       try {
-        const res = await fetch('/api/projects', { cache: 'no-store' })
-        if (!res.ok) return
-        const data = await res.json()
+        const data = await apiFetch<{ projects?: Project[] }>('/api/projects', {
+          cache: 'no-store',
+        })
         const projectList = Array.isArray(data?.projects) ? data.projects : []
         set({ projects: projectList })
       } catch {}
