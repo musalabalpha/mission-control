@@ -1,4 +1,5 @@
-import { existsSync } from 'node:fs'
+import { existsSync, realpathSync, statSync } from 'node:fs'
+import path from 'node:path'
 import { spawn } from 'node:child_process'
 import { getDatabase, db_helpers } from './db'
 import { callOpenClawGateway } from './openclaw-gateway'
@@ -8,6 +9,8 @@ import { config } from './config'
 import { getAllGatewaySessions } from './sessions'
 import { parseJsonlTranscript, readSessionJsonl, type TranscriptMessage } from './transcript-parser'
 import { syncTaskOutbound } from './github-sync-engine'
+import { classifyModelProvider, getDispatchModelId, getModelByAlias } from './models'
+import type Database from 'better-sqlite3'
 
 const AGENT_DISPATCH_ACCEPT_TIMEOUT_MS = 60_000
 
@@ -41,6 +44,44 @@ interface DispatchableTask {
   project_ticket_no: number | null
   project_id: number | null
   tags?: string[]
+  /** Raw tasks.metadata JSON — carries optional per-task sandbox overrides. */
+  metadata?: string | null
+}
+
+interface DispatchTokenUsage {
+  model: string
+  sessionId: string
+  inputTokens: number
+  outputTokens: number
+  workspaceId: number
+}
+
+/** Keep dispatch accounting aligned with the token_usage migration schema. */
+export function insertDispatchTokenUsage(
+  db: Pick<Database.Database, 'prepare'>,
+  usage: DispatchTokenUsage,
+  createdAt = Math.floor(Date.now() / 1000),
+): void {
+  db.prepare(`
+    INSERT INTO token_usage (model, session_id, input_tokens, output_tokens, cost_usd, created_at, workspace_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    usage.model,
+    usage.sessionId,
+    usage.inputTokens,
+    usage.outputTokens,
+    0,
+    createdAt,
+    usage.workspaceId,
+  )
+}
+
+function recordDispatchTokenUsage(usage: DispatchTokenUsage): void {
+  try {
+    insertDispatchTokenUsage(getDatabase(), usage)
+  } catch (err) {
+    logger.warn({ err, model: usage.model, workspaceId: usage.workspaceId }, 'Dispatch token usage insert failed')
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -76,6 +117,144 @@ function resolveGatewayAgentId(task: DispatchableTask): string {
     } catch { /* ignore */ }
   }
   return task.agent_name
+}
+
+// ---------------------------------------------------------------------------
+// Host-CLI sandbox flags (issue #720)
+// ---------------------------------------------------------------------------
+//
+// Opt-in safety flags for the host CLI dispatch paths (`claude` / `codex`).
+// Source of truth is the agent's config JSON (agents.config), using the same
+// flat naming style as `dispatchModel`:
+//
+//   { "dispatchAllowedTools": ["Read", "Grep"], "dispatchMaxBudgetUsd": 5,
+//     "dispatchCwd": "repos/my-project" }
+//
+// Each field can be overridden per task via tasks.metadata (camelCase or
+// snake_case, mirroring existing metadata keys like dispatch_session_id):
+//
+//   { "dispatch_allowed_tools": [...], "dispatch_max_budget_usd": 2,
+//     "dispatch_cwd": "..." }
+//
+// Absent config means today's behavior, byte-for-byte: no extra CLI flags,
+// no spawn cwd.
+
+/**
+ * Tool names the Claude Code CLI accepts for `--allowedTools`. Conservative
+ * exact-match allowlist — entries not listed here (including `Bash(...)`
+ * specifier syntax) are dropped with a warning. `--dangerously-skip-permissions`
+ * is never passed by task dispatch.
+ */
+export const CLAUDE_CLI_ALLOWED_TOOL_NAMES = [
+  'Task', 'Bash', 'Glob', 'Grep', 'Read', 'Edit', 'MultiEdit', 'Write',
+  'NotebookEdit', 'WebFetch', 'WebSearch', 'TodoWrite',
+] as const
+
+/** Ceiling for `--max-budget-usd` regardless of what the config asks for. */
+export const CLI_MAX_BUDGET_USD_CEILING = 100
+
+export interface CliDispatchSandboxOptions {
+  allowedTools: string[] | null
+  maxBudgetUsd: number | null
+  cwd: string | null
+}
+
+/**
+ * Validate a configured allowed-tools list against CLAUDE_CLI_ALLOWED_TOOL_NAMES.
+ * Unknown entries are dropped with a warning. Returns null when the input is
+ * not a list or nothing survives filtering — in `--print` mode, omitting
+ * `--allowedTools` is the more restrictive default (tools stay gated), so an
+ * all-invalid list fails closed, not open.
+ */
+export function filterCliAllowedTools(input: unknown, taskId?: number): string[] | null {
+  if (!Array.isArray(input)) return null
+  const valid: string[] = []
+  const rejected: string[] = []
+  for (const entry of input) {
+    if (typeof entry === 'string' && (CLAUDE_CLI_ALLOWED_TOOL_NAMES as readonly string[]).includes(entry)) {
+      if (!valid.includes(entry)) valid.push(entry)
+    } else {
+      rejected.push(typeof entry === 'string' ? entry : typeof entry)
+    }
+  }
+  if (rejected.length > 0) {
+    logger.warn({ taskId, rejected: rejected.slice(0, 20) },
+      'Ignoring allowed-tools entries not in the Claude CLI tool allowlist')
+  }
+  return valid.length > 0 ? valid : null
+}
+
+/** Clamp a configured max budget to a finite positive number ≤ the ceiling. */
+export function clampCliMaxBudgetUsd(input: unknown, taskId?: number): number | null {
+  if (typeof input !== 'number' || !Number.isFinite(input) || input <= 0) {
+    if (input !== undefined && input !== null) {
+      logger.warn({ taskId }, 'Ignoring invalid dispatch max budget (must be a finite positive number)')
+    }
+    return null
+  }
+  return Math.min(input, CLI_MAX_BUDGET_USD_CEILING)
+}
+
+/**
+ * Resolve a configured dispatch cwd to a real directory inside the operator's
+ * workspace root (config.workspaceRoot / MC_WORKSPACE_ROOT). Relative paths
+ * resolve against the root. Both sides go through fs.realpathSync before the
+ * prefix check, so `../` traversal and symlink escapes are rejected. Returns
+ * null (feature off) when no workspace root is configured.
+ */
+export function resolveCliDispatchCwd(input: unknown, workspaceRoot: string, taskId?: number): string | null {
+  if (typeof input !== 'string' || !input.trim()) return null
+  if (!workspaceRoot) {
+    logger.warn({ taskId }, 'Ignoring dispatch cwd: MC_WORKSPACE_ROOT is not configured')
+    return null
+  }
+  try {
+    const realRoot = realpathSync(path.resolve(workspaceRoot))
+    const realCwd = realpathSync(path.resolve(realRoot, input.trim()))
+    if (realCwd !== realRoot && !realCwd.startsWith(realRoot + path.sep)) {
+      logger.warn({ taskId }, 'Ignoring dispatch cwd: resolves outside the configured workspace root')
+      return null
+    }
+    if (!statSync(realCwd).isDirectory()) {
+      logger.warn({ taskId }, 'Ignoring dispatch cwd: not a directory')
+      return null
+    }
+    return realCwd
+  } catch {
+    logger.warn({ taskId }, 'Ignoring dispatch cwd: path does not exist or is not accessible')
+    return null
+  }
+}
+
+/**
+ * Resolve the opt-in CLI sandbox options for a task: agent config first,
+ * per-field override from tasks.metadata. All fields validated; anything
+ * invalid degrades to "flag not passed" (today's behavior).
+ */
+export function resolveCliSandboxOptions(
+  task: Pick<DispatchableTask, 'id' | 'agent_config' | 'metadata'>,
+  workspaceRoot: string = config.workspaceRoot,
+): CliDispatchSandboxOptions {
+  let agentCfg: Record<string, any> = {}
+  if (task.agent_config) {
+    try {
+      const parsed = JSON.parse(task.agent_config)
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) agentCfg = parsed
+    } catch { /* ignore */ }
+  }
+  const meta = safeParseMetadata(task.metadata)
+
+  const pick = (camel: string, snake: string): unknown => {
+    if (meta[camel] !== undefined) return meta[camel]
+    if (meta[snake] !== undefined) return meta[snake]
+    return agentCfg[camel]
+  }
+
+  return {
+    allowedTools: filterCliAllowedTools(pick('dispatchAllowedTools', 'dispatch_allowed_tools'), task.id),
+    maxBudgetUsd: clampCliMaxBudgetUsd(pick('dispatchMaxBudgetUsd', 'dispatch_max_budget_usd'), task.id),
+    cwd: resolveCliDispatchCwd(pick('dispatchCwd', 'dispatch_cwd'), workspaceRoot, task.id),
+  }
 }
 
 function buildTaskPrompt(task: DispatchableTask, rejectionFeedback?: string | null): string {
@@ -357,8 +536,10 @@ export async function reconcileDeferredTaskCompletions(options: {
     SELECT t.id, t.title, t.assigned_to, t.metadata, t.workspace_id,
            p.ticket_prefix, t.project_ticket_no
     FROM tasks t
+    JOIN workspaces w ON w.id = t.workspace_id
     LEFT JOIN projects p ON p.id = t.project_id AND p.workspace_id = t.workspace_id
     WHERE t.workspace_id = ?
+      AND w.isolation = 'shared'
       AND t.status = 'in_progress'
       AND t.metadata IS NOT NULL
       AND t.metadata LIKE '%"async_state"%'
@@ -435,6 +616,7 @@ export async function reconcileDeferredTaskCompletions(options: {
       id: task.id,
       status: 'review',
       previous_status: 'in_progress',
+      workspace_id: task.workspace_id,
     })
     eventBus.broadcast('task.updated', {
       id: task.id,
@@ -443,6 +625,7 @@ export async function reconcileDeferredTaskCompletions(options: {
       assigned_to: task.assigned_to,
       dispatch_session_id: nextMetadata.dispatch_session_id,
       dispatch_run_id: nextMetadata.dispatch_run_id,
+      workspace_id: task.workspace_id,
     })
 
     db_helpers.logActivity(
@@ -504,6 +687,19 @@ function isGatewayAvailable(): boolean {
   }
 }
 
+/**
+ * Resolve the Anthropic dispatch model ID for a catalog tier alias.
+ *
+ * MODEL_CATALOG is the single source of truth for model IDs — classification
+ * derives the exact API model ID from the catalog entry instead of
+ * hard-coding ID strings here. The literal fallback only applies if the
+ * catalog alias is ever removed (defensive; all three aliases exist today).
+ */
+function anthropicDispatchId(alias: 'opus' | 'sonnet' | 'haiku', fallback: string): string {
+  const entry = getModelByAlias(alias)
+  return entry && entry.provider === 'anthropic' ? getDispatchModelId(entry) : fallback
+}
+
 function classifyDirectModel(task: DispatchableTask): string {
   // Check per-agent config override first
   if (task.agent_config) {
@@ -525,16 +721,17 @@ function classifyDirectModel(task: DispatchableTask): string {
     'root cause', 'investigate', 'incident', 'refactor', 'migration',
   ]
   if (priority === 'critical' || complexSignals.some(s => text.includes(s))) {
-    return 'claude-opus-4-6'
+    return anthropicDispatchId('opus', 'claude-opus-4-6')
   }
 
   // Size heuristics → Opus for large/complex tasks
   const descLength = (task.description ?? '').length
-  if (descLength > 2000) return 'claude-opus-4-6'
+  if (descLength > 2000) return anthropicDispatchId('opus', 'claude-opus-4-6')
   try {
     const db = getDatabase()
-    const row = db.prepare('SELECT estimated_hours FROM tasks WHERE id = ?').get(task.id) as { estimated_hours: number | null } | undefined
-    if (row?.estimated_hours && row.estimated_hours >= 4) return 'claude-opus-4-6'
+    const row = db.prepare('SELECT estimated_hours FROM tasks WHERE id = ? AND workspace_id = ?')
+      .get(task.id, task.workspace_id) as { estimated_hours: number | null } | undefined
+    if (row?.estimated_hours && row.estimated_hours >= 4) return anthropicDispatchId('opus', 'claude-opus-4-6')
   } catch { /* ignore */ }
 
   // Routine → Haiku
@@ -543,11 +740,13 @@ function classifyDirectModel(task: DispatchableTask): string {
     'translate', 'quick ', 'simple ', 'routine ', 'minor ',
   ]
   if (routineSignals.some(s => text.includes(s)) && priority !== 'high' && priority !== 'critical') {
-    return 'claude-haiku-4-5-20251001'
+    // Catalog carries 'claude-haiku-4-5' (Anthropic's alias for the
+    // claude-haiku-4-5-20251001 snapshot) — both resolve to the same model.
+    return anthropicDispatchId('haiku', 'claude-haiku-4-5')
   }
 
   // Default → Sonnet
-  return 'claude-sonnet-4-6'
+  return anthropicDispatchId('sonnet', 'claude-sonnet-4-6')
 }
 
 function getAgentSoulContent(task: DispatchableTask): string | null {
@@ -615,23 +814,13 @@ async function callClaudeDirectly(
 
   // Record token usage
   if (data.usage) {
-    try {
-      const db = getDatabase()
-      const now = Math.floor(Date.now() / 1000)
-      db.prepare(`
-        INSERT INTO token_usage (model, session_id, input_tokens, output_tokens, total_tokens, cost, created_at, workspace_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        model,
-        `task-${task.id}`,
-        data.usage.input_tokens || 0,
-        data.usage.output_tokens || 0,
-        (data.usage.input_tokens || 0) + (data.usage.output_tokens || 0),
-        0, // cost calculated separately
-        now,
-        task.workspace_id,
-      )
-    } catch { /* non-fatal */ }
+    recordDispatchTokenUsage({
+      model,
+      sessionId: `task-${task.id}`,
+      inputTokens: data.usage.input_tokens || 0,
+      outputTokens: data.usage.output_tokens || 0,
+      workspaceId: task.workspace_id,
+    })
   }
 
   return { text, sessionId: null }
@@ -674,6 +863,17 @@ function getLocalApiKey(): string | null {
 }
 
 function pickProvider(model: string): DirectProvider {
+  // Consult MODEL_CATALOG first (single source of truth). Only providers
+  // with a direct dispatch path map to a DirectProvider; catalog providers
+  // without one (google, groq, moonshot, venice, minimax) fall through to
+  // the prefix rules below, which keeps their routing identical to before.
+  const catalogProvider = classifyModelProvider(model)
+  if (catalogProvider === 'anthropic') return 'anthropic'
+  if (catalogProvider === 'openai') return 'openai'
+  if (catalogProvider === 'ollama') return 'local'
+
+  // Prefix-match fallback for models not in the catalog — behavior for
+  // unknown IDs is unchanged (default remains 'anthropic').
   const m = model.toLowerCase()
   if (m.startsWith('openai/') || m.startsWith('gpt-') || m.startsWith('o1-') || m.startsWith('o3-')) return 'openai'
   if (m.startsWith('local/') || m.startsWith('ollama/') || m.startsWith('lmstudio/') || m.startsWith('litellm/')) return 'local'
@@ -753,15 +953,26 @@ async function callClaudeViaCli(
   model: string,
 ): Promise<AgentResponseParsed> {
   const soul = getAgentSoulContent(task)
+  const sandbox = resolveCliSandboxOptions(task)
   const args = ['--print', '--output-format', 'json', '--model', model]
+  if (sandbox.allowedTools) args.push('--allowedTools', sandbox.allowedTools.join(','))
+  if (sandbox.maxBudgetUsd !== null) args.push('--max-budget-usd', String(sandbox.maxBudgetUsd))
   if (soul) args.push('--append-system-prompt', soul)
 
-  logger.info({ taskId: task.id, model, agent: task.agent_name }, 'Dispatching task via Claude CLI')
+  const sandboxApplied = sandbox.allowedTools !== null || sandbox.maxBudgetUsd !== null || sandbox.cwd !== null
+  logger.info(
+    {
+      taskId: task.id, model, agent: task.agent_name,
+      ...(sandboxApplied ? { sandbox: { allowedTools: sandbox.allowedTools, maxBudgetUsd: sandbox.maxBudgetUsd, cwd: sandbox.cwd } } : {}),
+    },
+    'Dispatching task via Claude CLI',
+  )
 
   return await new Promise<AgentResponseParsed>((resolve, reject) => {
     const proc = spawn('claude', args, {
       stdio: ['pipe', 'pipe', 'pipe'],
       env: { ...process.env, CI: '1' },
+      ...(sandbox.cwd ? { cwd: sandbox.cwd } : {}),
     })
     let stdout = ''
     let stderr = ''
@@ -792,23 +1003,13 @@ async function callClaudeViaCli(
 
         // Record token usage if reported.
         if (parsed?.usage && (parsed.usage.input_tokens || parsed.usage.output_tokens)) {
-          try {
-            const db = getDatabase()
-            const now = Math.floor(Date.now() / 1000)
-            db.prepare(`
-              INSERT INTO token_usage (model, session_id, input_tokens, output_tokens, total_tokens, cost, created_at, workspace_id)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            `).run(
-              model,
-              sessionId || `task-${task.id}`,
-              parsed.usage.input_tokens || 0,
-              parsed.usage.output_tokens || 0,
-              (parsed.usage.input_tokens || 0) + (parsed.usage.output_tokens || 0),
-              0,
-              now,
-              task.workspace_id,
-            )
-          } catch { /* non-fatal */ }
+          recordDispatchTokenUsage({
+            model,
+            sessionId: sessionId || `task-${task.id}`,
+            inputTokens: parsed.usage.input_tokens || 0,
+            outputTokens: parsed.usage.output_tokens || 0,
+            workspaceId: task.workspace_id,
+          })
         }
 
         resolve({ text, sessionId })
@@ -860,23 +1061,13 @@ async function callOpenAICompatible(
   const text = data.choices?.[0]?.message?.content?.trim() || null
 
   if (data.usage) {
-    try {
-      const db = getDatabase()
-      const now = Math.floor(Date.now() / 1000)
-      db.prepare(`
-        INSERT INTO token_usage (model, session_id, input_tokens, output_tokens, total_tokens, cost, created_at, workspace_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        model,
-        `task-${task.id}`,
-        data.usage.prompt_tokens || 0,
-        data.usage.completion_tokens || 0,
-        (data.usage.prompt_tokens || 0) + (data.usage.completion_tokens || 0),
-        0,
-        now,
-        task.workspace_id,
-      )
-    } catch { /* non-fatal */ }
+    recordDispatchTokenUsage({
+      model,
+      sessionId: `task-${task.id}`,
+      inputTokens: data.usage.prompt_tokens || 0,
+      outputTokens: data.usage.completion_tokens || 0,
+      workspaceId: task.workspace_id,
+    })
   }
 
   return { text, sessionId: null }
@@ -920,12 +1111,19 @@ async function callCodexViaCli(
   if (model && /^gpt-/i.test(model)) args.push('--model', model)
   args.push('-')
 
-  logger.info({ taskId: task.id, model, agent: task.agent_name }, 'Dispatching task via Codex CLI')
+  // Workspace-scoped cwd only (issue #720) — codex's own --sandbox flag
+  // handling above stays untouched.
+  const dispatchCwd = resolveCliSandboxOptions(task).cwd
+  logger.info(
+    { taskId: task.id, model, agent: task.agent_name, ...(dispatchCwd ? { sandbox: { cwd: dispatchCwd } } : {}) },
+    'Dispatching task via Codex CLI',
+  )
 
   return await new Promise<AgentResponseParsed>((resolve, reject) => {
     const proc = spawn('codex', args, {
       stdio: ['pipe', 'pipe', 'pipe'],
       env: { ...process.env },
+      ...(dispatchCwd ? { cwd: dispatchCwd } : {}),
     })
     let stdout = ''
     let stderr = ''
@@ -1054,9 +1252,11 @@ export async function runAegisReviews(): Promise<{ ok: boolean; message: string 
     SELECT t.id, t.title, t.description, t.status, t.priority, t.resolution, t.assigned_to, t.workspace_id,
            t.project_id, p.ticket_prefix, t.project_ticket_no, a.config as agent_config
     FROM tasks t
+    JOIN workspaces w ON w.id = t.workspace_id
     LEFT JOIN projects p ON p.id = t.project_id AND p.workspace_id = t.workspace_id
     LEFT JOIN agents a ON a.name = t.assigned_to AND a.workspace_id = t.workspace_id
     WHERE t.status = 'review'
+      AND w.isolation = 'shared'
     ORDER BY t.updated_at ASC
     LIMIT 3
   `).all() as ReviewableTask[]
@@ -1069,13 +1269,14 @@ export async function runAegisReviews(): Promise<{ ok: boolean; message: string 
 
   for (const task of tasks) {
     // Move to quality_review to prevent re-processing
-    db.prepare('UPDATE tasks SET status = ?, updated_at = ? WHERE id = ?')
-      .run('quality_review', Math.floor(Date.now() / 1000), task.id)
+    db.prepare('UPDATE tasks SET status = ?, updated_at = ? WHERE id = ? AND workspace_id = ?')
+      .run('quality_review', Math.floor(Date.now() / 1000), task.id, task.workspace_id)
 
     eventBus.broadcast('task.status_changed', {
       id: task.id,
       status: 'quality_review',
       previous_status: 'review',
+      workspace_id: task.workspace_id,
     })
 
     try {
@@ -1128,26 +1329,27 @@ export async function runAegisReviews(): Promise<{ ok: boolean; message: string 
       `).run(task.id, verdict.status, verdict.notes, task.workspace_id)
 
       if (verdict.status === 'approved') {
-        db.prepare('UPDATE tasks SET status = ?, updated_at = ? WHERE id = ?')
-          .run('done', Math.floor(Date.now() / 1000), task.id)
+        db.prepare('UPDATE tasks SET status = ?, updated_at = ? WHERE id = ? AND workspace_id = ?')
+          .run('done', Math.floor(Date.now() / 1000), task.id, task.workspace_id)
 
         eventBus.broadcast('task.status_changed', {
           id: task.id,
           status: 'done',
           previous_status: 'quality_review',
+          workspace_id: task.workspace_id,
         })
         syncAndEscalateIfFailed(task, 'done')
       } else {
         // Rejected: check dispatch_attempts to decide next status
         const now = Math.floor(Date.now() / 1000)
-        const currentAttempts = (db.prepare('SELECT dispatch_attempts FROM tasks WHERE id = ?').get(task.id) as { dispatch_attempts: number } | undefined)?.dispatch_attempts ?? 0
+        const currentAttempts = (db.prepare('SELECT dispatch_attempts FROM tasks WHERE id = ? AND workspace_id = ?').get(task.id, task.workspace_id) as { dispatch_attempts: number } | undefined)?.dispatch_attempts ?? 0
         const newAttempts = currentAttempts + 1
         const maxAegisRetries = 3
 
         if (newAttempts >= maxAegisRetries) {
           // Too many rejections — move to failed
-          db.prepare('UPDATE tasks SET status = ?, error_message = ?, dispatch_attempts = ?, updated_at = ? WHERE id = ?')
-            .run('failed', `Aegis rejected ${newAttempts} times. Last: ${verdict.notes}`, newAttempts, now, task.id)
+          db.prepare('UPDATE tasks SET status = ?, error_message = ?, dispatch_attempts = ?, updated_at = ? WHERE id = ? AND workspace_id = ?')
+            .run('failed', `Aegis rejected ${newAttempts} times. Last: ${verdict.notes}`, newAttempts, now, task.id, task.workspace_id)
 
           eventBus.broadcast('task.status_changed', {
             id: task.id,
@@ -1155,12 +1357,13 @@ export async function runAegisReviews(): Promise<{ ok: boolean; message: string 
             previous_status: 'quality_review',
             error_message: `Aegis rejected ${newAttempts} times`,
             reason: 'max_aegis_retries_exceeded',
+            workspace_id: task.workspace_id,
           })
           syncAndEscalateIfFailed(task, 'failed', `Aegis rejected ${newAttempts} times`, newAttempts)
         } else {
           // Requeue to assigned for re-dispatch with feedback
-          db.prepare('UPDATE tasks SET status = ?, error_message = ?, dispatch_attempts = ?, updated_at = ? WHERE id = ?')
-            .run('assigned', `Aegis rejected: ${verdict.notes}`, newAttempts, now, task.id)
+          db.prepare('UPDATE tasks SET status = ?, error_message = ?, dispatch_attempts = ?, updated_at = ? WHERE id = ? AND workspace_id = ?')
+            .run('assigned', `Aegis rejected: ${verdict.notes}`, newAttempts, now, task.id, task.workspace_id)
 
           eventBus.broadcast('task.status_changed', {
             id: task.id,
@@ -1168,6 +1371,7 @@ export async function runAegisReviews(): Promise<{ ok: boolean; message: string 
             previous_status: 'quality_review',
             error_message: `Aegis rejected: ${verdict.notes}`,
             reason: 'aegis_rejection',
+            workspace_id: task.workspace_id,
           })
           syncAndEscalateIfFailed(task, 'assigned')
         }
@@ -1198,13 +1402,13 @@ export async function runAegisReviews(): Promise<{ ok: boolean; message: string 
       // Cap retries so a persistently failing review (e.g. gateway down) can't
       // loop forever instead of reverting to 'review' every cron tick (HLX-300).
       const now = Math.floor(Date.now() / 1000)
-      const currentAttempts = (db.prepare('SELECT dispatch_attempts FROM tasks WHERE id = ?').get(task.id) as { dispatch_attempts: number } | undefined)?.dispatch_attempts ?? 0
+      const currentAttempts = (db.prepare('SELECT dispatch_attempts FROM tasks WHERE id = ? AND workspace_id = ?').get(task.id, task.workspace_id) as { dispatch_attempts: number } | undefined)?.dispatch_attempts ?? 0
       const newAttempts = currentAttempts + 1
       const maxAegisErrorRetries = 5
 
       if (newAttempts >= maxAegisErrorRetries) {
-        db.prepare('UPDATE tasks SET status = ?, error_message = ?, dispatch_attempts = ?, updated_at = ? WHERE id = ?')
-          .run('failed', `Aegis review failed ${newAttempts} times: ${errorMsg}`.substring(0, 500), newAttempts, now, task.id)
+        db.prepare('UPDATE tasks SET status = ?, error_message = ?, dispatch_attempts = ?, updated_at = ? WHERE id = ? AND workspace_id = ?')
+          .run('failed', `Aegis review failed ${newAttempts} times: ${errorMsg}`.substring(0, 500), newAttempts, now, task.id, task.workspace_id)
 
         eventBus.broadcast('task.status_changed', {
           id: task.id,
@@ -1212,17 +1416,19 @@ export async function runAegisReviews(): Promise<{ ok: boolean; message: string 
           previous_status: 'quality_review',
           error_message: `Aegis review failed ${newAttempts} times`,
           reason: 'max_aegis_error_retries_exceeded',
+          workspace_id: task.workspace_id,
         })
         syncAndEscalateIfFailed(task, 'failed', `Aegis review failed ${newAttempts} times`, newAttempts)
       } else {
         // Revert to review so it can be retried
-        db.prepare('UPDATE tasks SET status = ?, dispatch_attempts = ?, updated_at = ? WHERE id = ?')
-          .run('review', newAttempts, now, task.id)
+        db.prepare('UPDATE tasks SET status = ?, dispatch_attempts = ?, updated_at = ? WHERE id = ? AND workspace_id = ?')
+          .run('review', newAttempts, now, task.id, task.workspace_id)
 
         eventBus.broadcast('task.status_changed', {
           id: task.id,
           status: 'review',
           previous_status: 'quality_review',
+          workspace_id: task.workspace_id,
         })
       }
 
@@ -1285,8 +1491,8 @@ export async function requeueStaleTasks(): Promise<{ ok: boolean; message: strin
     const newAttempts = (task.dispatch_attempts ?? 0) + 1
 
     if (newAttempts >= maxDispatchRetries) {
-      db.prepare('UPDATE tasks SET status = ?, error_message = ?, dispatch_attempts = ?, updated_at = ? WHERE id = ?')
-        .run('failed', `Task stuck in_progress ${newAttempts} times — agent "${task.assigned_to}" offline. Moved to failed.`, newAttempts, now, task.id)
+      db.prepare('UPDATE tasks SET status = ?, error_message = ?, dispatch_attempts = ?, updated_at = ? WHERE id = ? AND workspace_id = ?')
+        .run('failed', `Task stuck in_progress ${newAttempts} times — agent "${task.assigned_to}" offline. Moved to failed.`, newAttempts, now, task.id, task.workspace_id)
 
       eventBus.broadcast('task.status_changed', {
         id: task.id,
@@ -1294,13 +1500,14 @@ export async function requeueStaleTasks(): Promise<{ ok: boolean; message: strin
         previous_status: 'in_progress',
         error_message: `Stale task — agent offline after ${newAttempts} attempts`,
         reason: 'stale_task_max_retries',
+        workspace_id: task.workspace_id,
       })
 
       syncAndEscalateIfFailed(task as any, 'failed', `Task stuck in_progress ${newAttempts} times`, newAttempts)
       failed++
     } else {
-      db.prepare('UPDATE tasks SET status = ?, error_message = ?, dispatch_attempts = ?, updated_at = ? WHERE id = ?')
-        .run('assigned', `Requeued: agent "${task.assigned_to}" went offline while task was in_progress`, newAttempts, now, task.id)
+      db.prepare('UPDATE tasks SET status = ?, error_message = ?, dispatch_attempts = ?, updated_at = ? WHERE id = ? AND workspace_id = ?')
+        .run('assigned', `Requeued: agent "${task.assigned_to}" went offline while task was in_progress`, newAttempts, now, task.id, task.workspace_id)
 
       // Add a comment explaining the requeue
       db.prepare(`
@@ -1314,6 +1521,7 @@ export async function requeueStaleTasks(): Promise<{ ok: boolean; message: strin
         previous_status: 'in_progress',
         error_message: `Agent "${task.assigned_to}" went offline`,
         reason: 'stale_task_requeue',
+        workspace_id: task.workspace_id,
       })
       syncAndEscalateIfFailed(task as any, 'assigned')
 
@@ -1338,8 +1546,10 @@ export async function dispatchAssignedTasks(): Promise<{ ok: boolean; message: s
            p.ticket_prefix, t.project_ticket_no
     FROM tasks t
     JOIN agents a ON a.name = t.assigned_to AND a.workspace_id = t.workspace_id
+    JOIN workspaces w ON w.id = t.workspace_id
     LEFT JOIN projects p ON p.id = t.project_id AND p.workspace_id = t.workspace_id
     WHERE t.status = 'assigned'
+      AND w.isolation = 'shared'
       AND t.assigned_to IS NOT NULL
     ORDER BY
       CASE t.priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END ASC,
@@ -1367,8 +1577,8 @@ export async function dispatchAssignedTasks(): Promise<{ ok: boolean; message: s
     // multiple workers polling), exactly one UPDATE reports changes=1 and the
     // loser skips this task — preventing double-dispatch (issue/PR #698).
     const claim = db
-      .prepare("UPDATE tasks SET status = ?, updated_at = ? WHERE id = ? AND status = 'assigned'")
-      .run('in_progress', now, task.id)
+      .prepare("UPDATE tasks SET status = ?, updated_at = ? WHERE id = ? AND status = 'assigned' AND workspace_id = ?")
+      .run('in_progress', now, task.id, task.workspace_id)
 
     if (claim.changes === 0) {
       // Another dispatcher won the race (or the task was cancelled between
@@ -1380,6 +1590,7 @@ export async function dispatchAssignedTasks(): Promise<{ ok: boolean; message: s
       id: task.id,
       status: 'in_progress',
       previous_status: 'assigned',
+      workspace_id: task.workspace_id,
     })
 
     db_helpers.logActivity(
@@ -1396,9 +1607,9 @@ export async function dispatchAssignedTasks(): Promise<{ ok: boolean; message: s
       // Check for previous Aegis rejection feedback
       const rejectionRow = db.prepare(`
         SELECT content FROM comments
-        WHERE task_id = ? AND author = 'aegis' AND content LIKE 'Quality Review Rejected:%'
+        WHERE task_id = ? AND author = 'aegis' AND content LIKE 'Quality Review Rejected:%' AND workspace_id = ?
         ORDER BY created_at DESC LIMIT 1
-      `).get(task.id) as { content: string } | undefined
+      `).get(task.id, task.workspace_id) as { content: string } | undefined
       const rejectionFeedback = rejectionRow?.content?.replace(/^Quality Review Rejected:\n?/, '') || null
 
       const prompt = buildTaskPrompt(task, rejectionFeedback)
@@ -1406,7 +1617,8 @@ export async function dispatchAssignedTasks(): Promise<{ ok: boolean; message: s
       // Check if task has a target session specified in metadata
       const taskMeta = (() => {
         try {
-          const row = db.prepare('SELECT metadata FROM tasks WHERE id = ?').get(task.id) as { metadata: string } | undefined
+          const row = db.prepare('SELECT metadata FROM tasks WHERE id = ? AND workspace_id = ?')
+            .get(task.id, task.workspace_id) as { metadata: string } | undefined
           return row?.metadata ? JSON.parse(row.metadata) : {}
         } catch { return {} }
       })()
@@ -1456,8 +1668,8 @@ export async function dispatchAssignedTasks(): Promise<{ ok: boolean; message: s
           async_state: asyncState,
           async_dispatched_at: Math.floor(Date.now() / 1000),
         }
-        db.prepare('UPDATE tasks SET metadata = ?, updated_at = ? WHERE id = ?')
-          .run(JSON.stringify(pendingMeta), Math.floor(Date.now() / 1000), task.id)
+        db.prepare('UPDATE tasks SET metadata = ?, updated_at = ? WHERE id = ? AND workspace_id = ?')
+          .run(JSON.stringify(pendingMeta), Math.floor(Date.now() / 1000), task.id, task.workspace_id)
 
         eventBus.broadcast('task.updated', {
           id: task.id,
@@ -1466,6 +1678,7 @@ export async function dispatchAssignedTasks(): Promise<{ ok: boolean; message: s
           dispatch_session_id: targetSession,
           dispatch_run_id: pendingMeta.dispatch_run_id,
           async_state: asyncState,
+          workspace_id: task.workspace_id,
         })
 
         db_helpers.logActivity(
@@ -1525,8 +1738,8 @@ export async function dispatchAssignedTasks(): Promise<{ ok: boolean; message: s
           async_state: asyncState,
           async_dispatched_at: Math.floor(Date.now() / 1000),
         }
-        db.prepare('UPDATE tasks SET metadata = ?, updated_at = ? WHERE id = ?')
-          .run(JSON.stringify(pendingMeta), Math.floor(Date.now() / 1000), task.id)
+        db.prepare('UPDATE tasks SET metadata = ?, updated_at = ? WHERE id = ? AND workspace_id = ?')
+          .run(JSON.stringify(pendingMeta), Math.floor(Date.now() / 1000), task.id, task.workspace_id)
 
         eventBus.broadcast('task.updated', {
           id: task.id,
@@ -1535,6 +1748,7 @@ export async function dispatchAssignedTasks(): Promise<{ ok: boolean; message: s
           dispatch_session_id: dispatchSessionId,
           dispatch_run_id: pendingMeta.dispatch_run_id,
           async_state: asyncState,
+          workspace_id: task.workspace_id,
         })
 
         db_helpers.logActivity(
@@ -1564,7 +1778,8 @@ export async function dispatchAssignedTasks(): Promise<{ ok: boolean; message: s
       // Merge dispatch_session_id into existing metadata
       const existingMeta = (() => {
         try {
-          const row = db.prepare('SELECT metadata FROM tasks WHERE id = ?').get(task.id) as { metadata: string } | undefined
+          const row = db.prepare('SELECT metadata FROM tasks WHERE id = ? AND workspace_id = ?')
+            .get(task.id, task.workspace_id) as { metadata: string } | undefined
           return row?.metadata ? JSON.parse(row.metadata) : {}
         } catch { return {} }
       })()
@@ -1574,8 +1789,8 @@ export async function dispatchAssignedTasks(): Promise<{ ok: boolean; message: s
 
       // Update task: status → review, set outcome
       db.prepare(`
-        UPDATE tasks SET status = ?, outcome = ?, resolution = ?, metadata = ?, updated_at = ? WHERE id = ?
-      `).run('review', 'success', truncated, JSON.stringify(existingMeta), Math.floor(Date.now() / 1000), task.id)
+        UPDATE tasks SET status = ?, outcome = ?, resolution = ?, metadata = ?, updated_at = ? WHERE id = ? AND workspace_id = ?
+      `).run('review', 'success', truncated, JSON.stringify(existingMeta), Math.floor(Date.now() / 1000), task.id, task.workspace_id)
 
       // Add a comment from the agent with the full response
       db.prepare(`
@@ -1593,6 +1808,7 @@ export async function dispatchAssignedTasks(): Promise<{ ok: boolean; message: s
         id: task.id,
         status: 'review',
         previous_status: 'in_progress',
+        workspace_id: task.workspace_id,
       })
 
       eventBus.broadcast('task.updated', {
@@ -1601,6 +1817,7 @@ export async function dispatchAssignedTasks(): Promise<{ ok: boolean; message: s
         outcome: 'success',
         assigned_to: task.assigned_to,
         dispatch_session_id: agentResponse.sessionId,
+        workspace_id: task.workspace_id,
       })
       syncAndEscalateIfFailed(task, 'review')
 
@@ -1621,15 +1838,16 @@ export async function dispatchAssignedTasks(): Promise<{ ok: boolean; message: s
       logger.error({ taskId: task.id, agent: task.agent_name, err }, 'Task dispatch failed')
 
       // Increment dispatch_attempts and decide next status
-      const currentAttempts = (db.prepare('SELECT dispatch_attempts FROM tasks WHERE id = ?').get(task.id) as { dispatch_attempts: number } | undefined)?.dispatch_attempts ?? 0
+      const currentAttempts = (db.prepare('SELECT dispatch_attempts FROM tasks WHERE id = ? AND workspace_id = ?')
+        .get(task.id, task.workspace_id) as { dispatch_attempts: number } | undefined)?.dispatch_attempts ?? 0
       const newAttempts = currentAttempts + 1
       const maxDispatchRetries = 5
 
       if (newAttempts >= maxDispatchRetries) {
         const failureMessage = `Dispatch failed ${newAttempts} times. Last: ${errorMsg.substring(0, 5000)}`
         // Too many failures — move to failed
-        db.prepare('UPDATE tasks SET status = ?, error_message = ?, dispatch_attempts = ?, updated_at = ? WHERE id = ?')
-          .run('failed', failureMessage, newAttempts, Math.floor(Date.now() / 1000), task.id)
+        db.prepare('UPDATE tasks SET status = ?, error_message = ?, dispatch_attempts = ?, updated_at = ? WHERE id = ? AND workspace_id = ?')
+          .run('failed', failureMessage, newAttempts, Math.floor(Date.now() / 1000), task.id, task.workspace_id)
 
         eventBus.broadcast('task.status_changed', {
           id: task.id,
@@ -1637,12 +1855,13 @@ export async function dispatchAssignedTasks(): Promise<{ ok: boolean; message: s
           previous_status: 'in_progress',
           error_message: failureMessage,
           reason: 'max_dispatch_retries_exceeded',
+          workspace_id: task.workspace_id,
         })
         syncAndEscalateIfFailed(task, 'failed', `Dispatch failed ${newAttempts} times`, newAttempts)
       } else {
         // Revert to assigned so it can be retried on the next tick
-        db.prepare('UPDATE tasks SET status = ?, error_message = ?, dispatch_attempts = ?, updated_at = ? WHERE id = ?')
-          .run('assigned', errorMsg.substring(0, 5000), newAttempts, Math.floor(Date.now() / 1000), task.id)
+        db.prepare('UPDATE tasks SET status = ?, error_message = ?, dispatch_attempts = ?, updated_at = ? WHERE id = ? AND workspace_id = ?')
+          .run('assigned', errorMsg.substring(0, 5000), newAttempts, Math.floor(Date.now() / 1000), task.id, task.workspace_id)
 
         eventBus.broadcast('task.status_changed', {
           id: task.id,
@@ -1650,6 +1869,7 @@ export async function dispatchAssignedTasks(): Promise<{ ok: boolean; message: s
           previous_status: 'in_progress',
           error_message: errorMsg.substring(0, 500),
           reason: 'dispatch_failed',
+          workspace_id: task.workspace_id,
         })
         syncAndEscalateIfFailed(task, 'assigned')
       }
@@ -1753,22 +1973,20 @@ export async function autoRouteInboxTasks(): Promise<{ ok: boolean; message: str
     return { ok: true, message: 'No inbox tasks to route' }
   }
 
-  // Get all non-hidden, non-offline agents
-  const agents = db.prepare(`
-    SELECT id, name, role, status, config
-    FROM agents
-    WHERE hidden = 0 AND status NOT IN ('offline', 'error')
-    LIMIT 50
-  `).all() as Array<{ id: number; name: string; role: string; status: string; config: string | null }>
-
-  if (agents.length === 0) {
-    return { ok: true, message: `${inboxTasks.length} inbox task(s) but no available agents` }
-  }
-
   let routed = 0
   const now = Math.floor(Date.now() / 1000)
 
   for (const task of inboxTasks) {
+    const agents = db.prepare(`
+      SELECT id, name, role, status, config
+      FROM agents
+      WHERE workspace_id = ?
+        AND hidden = 0
+        AND status NOT IN ('offline', 'error')
+      LIMIT 50
+    `).all(task.workspace_id) as Array<{ id: number; name: string; role: string; status: string; config: string | null }>
+    if (agents.length === 0) continue
+
     const taskText = `${task.title} ${task.description || ''}`
     let parsedTags: string[] = []
     if (task.tags) {
@@ -1800,29 +2018,29 @@ export async function autoRouteInboxTasks(): Promise<{ ok: boolean; message: str
         return c < 3
       })
       if (!alt) continue // all agents at capacity
-      db.prepare('UPDATE tasks SET status = ?, assigned_to = ?, updated_at = ? WHERE id = ?')
-        .run('assigned', alt.agent.name, now, task.id)
+      db.prepare('UPDATE tasks SET status = ?, assigned_to = ?, updated_at = ? WHERE id = ? AND workspace_id = ?')
+        .run('assigned', alt.agent.name, now, task.id, task.workspace_id)
 
       db_helpers.logActivity('task_auto_routed', 'task', task.id, 'scheduler',
         `Auto-assigned "${task.title}" to ${alt.agent.name} (${alt.agent.role}, score: ${alt.score})`,
         { agent: alt.agent.name, role: alt.agent.role, score: alt.score },
         task.workspace_id)
 
-      eventBus.broadcast('task.status_changed', { id: task.id, status: 'assigned', previous_status: 'inbox', assigned_to: alt.agent.name })
+      eventBus.broadcast('task.status_changed', { id: task.id, status: 'assigned', previous_status: 'inbox', assigned_to: alt.agent.name, workspace_id: task.workspace_id })
       syncAndEscalateIfFailed(task as any, 'assigned')
       routed++
       continue
     }
 
-    db.prepare('UPDATE tasks SET status = ?, assigned_to = ?, updated_at = ? WHERE id = ?')
-      .run('assigned', best.name, now, task.id)
+    db.prepare('UPDATE tasks SET status = ?, assigned_to = ?, updated_at = ? WHERE id = ? AND workspace_id = ?')
+      .run('assigned', best.name, now, task.id, task.workspace_id)
 
     db_helpers.logActivity('task_auto_routed', 'task', task.id, 'scheduler',
       `Auto-assigned "${task.title}" to ${best.name} (${best.role}, score: ${scored[0].score})`,
       { agent: best.name, role: best.role, score: scored[0].score },
       task.workspace_id)
 
-    eventBus.broadcast('task.status_changed', { id: task.id, status: 'assigned', previous_status: 'inbox', assigned_to: best.name })
+    eventBus.broadcast('task.status_changed', { id: task.id, status: 'assigned', previous_status: 'inbox', assigned_to: best.name, workspace_id: task.workspace_id })
     syncAndEscalateIfFailed(task as any, 'assigned')
     routed++
   }

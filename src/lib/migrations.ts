@@ -6,6 +6,7 @@ import type Database from 'better-sqlite3'
 export type Migration = {
   id: string
   up: (db: Database.Database) => void
+  foreignKeysOff?: boolean
 }
 
 // Plugin hook: extensions can register additional migrations without modifying this file.
@@ -1452,6 +1453,88 @@ const migrations: Migration[] = [
       }
       db.prepare("DELETE FROM settings WHERE key = 'security.api_key'").run()
     }
+  },
+  {
+    id: '052_workspace_brand_isolation',
+    up(db: Database.Database) {
+      // Issue #677 slice 1: native `brand` and `isolation` fields on workspaces.
+      // - brand: free-text tag for cross-tenant logical grouping (nullable).
+      // - isolation: 'shared' | 'strict' — whether cross-workspace memory access
+      //   from agents is allowed. SQLite's ALTER TABLE cannot add CHECK
+      //   constraints, so the allowed values are enforced in the validation
+      //   layer (see workspace schemas in src/lib/validation.ts).
+      const cols = db.prepare(`PRAGMA table_info(workspaces)`).all() as Array<{ name: string }>
+      if (!cols.some((c) => c.name === 'brand')) {
+        db.exec(`ALTER TABLE workspaces ADD COLUMN brand TEXT DEFAULT NULL`)
+      }
+      if (!cols.some((c) => c.name === 'isolation')) {
+        db.exec(`ALTER TABLE workspaces ADD COLUMN isolation TEXT NOT NULL DEFAULT 'shared'`)
+      }
+    }
+  },
+  {
+    id: '053_audit_log_workspace',
+    up(db: Database.Database) {
+      const cols = db.prepare(`PRAGMA table_info(audit_log)`).all() as Array<{ name: string }>
+      if (!cols.some((column) => column.name === 'workspace_id')) {
+        // Legacy rows predate workspace attribution. Keep them visible only in
+        // the default workspace rather than guessing ownership.
+        db.exec(`ALTER TABLE audit_log ADD COLUMN workspace_id INTEGER NOT NULL DEFAULT 1`)
+      }
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_audit_log_workspace_created ON audit_log(workspace_id, created_at DESC)`)
+    }
+  },
+  {
+    id: '054_agent_name_workspace_unique',
+    foreignKeysOff: true,
+    up(db: Database.Database) {
+      // The original schema made agent names globally unique even after agents
+      // gained workspace ownership. Rebuild the table so names are unique only
+      // within a workspace. Session keys remain globally unique because they
+      // address an external runtime session, not an application-local identity.
+      db.exec(`
+        CREATE TABLE agents_workspace_unique (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          role TEXT NOT NULL,
+          session_key TEXT UNIQUE,
+          soul_content TEXT,
+          status TEXT NOT NULL DEFAULT 'offline',
+          last_seen INTEGER,
+          last_activity TEXT,
+          created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+          updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+          config TEXT,
+          workspace_id INTEGER NOT NULL DEFAULT 1,
+          source TEXT DEFAULT 'manual',
+          content_hash TEXT,
+          workspace_path TEXT,
+          hidden INTEGER NOT NULL DEFAULT 0,
+          working_memory TEXT DEFAULT '',
+          runtime_type TEXT DEFAULT NULL,
+          UNIQUE(name, workspace_id)
+        );
+
+        INSERT INTO agents_workspace_unique (
+          id, name, role, session_key, soul_content, status, last_seen,
+          last_activity, created_at, updated_at, config, workspace_id, source,
+          content_hash, workspace_path, hidden, working_memory, runtime_type
+        )
+        SELECT
+          id, name, role, session_key, soul_content, status, last_seen,
+          last_activity, created_at, updated_at, config, workspace_id, source,
+          content_hash, workspace_path, hidden, working_memory, runtime_type
+        FROM agents;
+
+        DROP TABLE agents;
+        ALTER TABLE agents_workspace_unique RENAME TO agents;
+
+        CREATE INDEX idx_agents_session_key ON agents(session_key);
+        CREATE INDEX idx_agents_status ON agents(status);
+        CREATE INDEX idx_agents_workspace_id ON agents(workspace_id);
+        CREATE INDEX idx_agents_source ON agents(source);
+      `)
+    }
   }
 ]
 
@@ -1469,9 +1552,22 @@ export function runMigrations(db: Database.Database) {
 
   for (const migration of [...migrations, ...extraMigrations]) {
     if (applied.has(migration.id)) continue
-    db.transaction(() => {
-      migration.up(db)
-      db.prepare('INSERT OR IGNORE INTO schema_migrations (id) VALUES (?)').run(migration.id)
-    })()
+    const restoreForeignKeys = migration.foreignKeysOff
+      && db.pragma('foreign_keys', { simple: true }) === 1
+    if (restoreForeignKeys) db.pragma('foreign_keys = OFF')
+    try {
+      db.transaction(() => {
+        migration.up(db)
+        if (migration.foreignKeysOff) {
+          const violations = db.pragma('foreign_key_check') as unknown[]
+          if (violations.length > 0) {
+            throw new Error(`Migration ${migration.id} left ${violations.length} foreign-key violation(s)`)
+          }
+        }
+        db.prepare('INSERT OR IGNORE INTO schema_migrations (id) VALUES (?)').run(migration.id)
+      })()
+    } finally {
+      if (restoreForeignKeys) db.pragma('foreign_keys = ON')
+    }
   }
 }

@@ -4,6 +4,26 @@ const withNextIntl = require('next-intl/plugin')('./src/i18n/request.ts')
 const nextConfig = {
   output: 'standalone',
   outputFileTracingRoot: __dirname,
+  outputFileTracingIncludes: {
+    // These files are read from process.cwd() at runtime and therefore cannot
+    // be discovered reliably by static output tracing.
+    '/*': [
+      './openapi.json',
+      './ops/templates/openclaw-gateway@.service',
+      './src/lib/schema.sql',
+    ],
+    // Force Next's own image optimizer into the standalone bundle. The pnpm
+    // file-tracer is non-deterministic about this conditional require and has
+    // shipped standalone builds missing `./image-optimizer`, which crashes the
+    // `/_next/image` handler (MODULE_NOT_FOUND) and makes runtime tiles render
+    // as "disconnected" even when the backend is healthy. Explicit include
+    // pins it so every future `pnpm build` bundles it.
+    // NOTE: must stay in THIS object. It previously lived in a second
+    // `outputFileTracingIncludes` key further down, which silently overwrote
+    // the entries above (duplicate key) and dropped ops/templates from the
+    // standalone build.
+    '/**': ['./node_modules/next/dist/server/image-optimizer.js'],
+  },
   outputFileTracingExcludes: {
     // `.git` must be excluded so the Next.js file tracer does not copy the
     // entire repo .git directory into `.next/standalone/`. When it does,
@@ -12,16 +32,24 @@ const nextConfig = {
     // process.cwd() under `pnpm start:standalone`) reports every file the
     // standalone build doesn't bundle (e.g. `src/lib/__tests__/`) as
     // deleted — blocking the dirty-tree check and breaking self-update.
-    '/*': ['./.data/**/*', './.git/**/*'],
-  },
-  outputFileTracingIncludes: {
-    // Force Next's own image optimizer into the standalone bundle. The pnpm
-    // file-tracer is non-deterministic about this conditional require and has
-    // shipped standalone builds missing `./image-optimizer`, which crashes the
-    // `/_next/image` handler (MODULE_NOT_FOUND) and makes runtime tiles render
-    // as "disconnected" even when the backend is healthy. Explicit include
-    // pins it so every future `pnpm build` bundles it.
-    '/**': ['./node_modules/next/dist/server/image-optimizer.js'],
+    '/*': [
+      './.data/**/*',
+      './.devgod/**/*',
+      './.git/**/*',
+      './.github/**/*',
+      './docs/**/*',
+      './examples/**/*',
+      './tests/**/*',
+      './wiki/**/*',
+      './src/**/*.test.*',
+      './src/**/__tests__/**/*',
+      './.env*',
+      './playwright*.ts',
+      './vitest.config.ts',
+      './eslint.config.mjs',
+      './tsconfig*.json',
+      './tsconfig.tsbuildinfo',
+    ],
   },
   turbopack: {
     root: __dirname,

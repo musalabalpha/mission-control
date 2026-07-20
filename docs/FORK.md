@@ -37,4 +37,26 @@ Si un cherry-pick toca estos archivos, se resuelve a favor nuestro:
 - Deploy: `pnpm build` → `launchctl kickstart -k gui/501/com.helix.mission-control` → smoke test en :8443.
 - Revertir un deploy: `git checkout <commit-anterior>` + rebuild + kickstart.
 
-Último sync con upstream: v2.1.0 (jul-2026).
+## Gotchas verificados en el sync v2.2.0
+
+- **`next.config.js` — clave duplicada.** Upstream v2.2.0 añadió su propio
+  `outputFileTracingIncludes` arriba; nuestro parche del image-optimizer ya
+  definía otra clave con el mismo nombre más abajo. En JS la segunda gana, así
+  que el merge limpio borró en silencio `ops/templates`, `openapi.json` y
+  `schema.sql` del standalone y reventó `artifact:prepare`. Ambos bloques van
+  ahora en UNA sola clave. Ante cualquier sync futuro: `outputFileTracingIncludes`
+  debe aparecer una sola vez.
+- **Doctor `--fix` ya no devuelve `output`.** Upstream lo quitó porque el stdout
+  crudo del comando puede arrastrar secretos. Se acepta (es fix de seguridad).
+  Lo que SÍ conservamos es el manejo del puerto 18789 compartido con Tailscale
+  Serve (`runDoctorCommand`, `gatewayStillReachableAfterRestartSkip`).
+- **Botón Doctor Fix:** sigue eliminado. El test upstream
+  `openclaw-maintenance-client-security` exigía `confirmation: 'fix_openclaw'`
+  en el banner; se adaptó para afirmar la propiedad más fuerte (el banner no
+  ejecuta acción alguna) en vez de readoptar el botón.
+- **Checks de autorización antes de la DB.** En `agents/[id]/files` y
+  `agents/[id]/soul`, `requireAgentSelfAccess` corre ahora antes del lookup de
+  aislamiento y de `getDatabase()`. Upstream los ordenaba al revés.
+
+Último sync con upstream: v2.2.0 (jul-2026) — merge del tag `v2.2.0`, 126 commits,
+421 archivos, 10 conflictos. `pnpm lint`/`typecheck`/`test` (1535) y `build` en verde.
