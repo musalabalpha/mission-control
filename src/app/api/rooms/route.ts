@@ -48,5 +48,30 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  return NextResponse.json({ generatedAt: data.generatedAt ?? null, rooms: data.rooms })
+  // JSON parseable pero estructuralmente corrupto no debe tumbar el panel
+  // (review Codex 22-jul): se filtra al contrato en vez de confiar en él.
+  const rooms = data.rooms
+    .filter(
+      (r): r is Room =>
+        !!r &&
+        typeof r.id === 'string' &&
+        typeof r.label === 'string' &&
+        typeof r.owner === 'string' &&
+        Array.isArray(r.issues)
+    )
+    .map((r) => ({
+      ...r,
+      issues: r.issues.filter(
+        (i) => !!i && typeof i.identifier === 'string' && typeof i.url === 'string'
+      ),
+    }))
+
+  if (rooms.length === 0) {
+    return NextResponse.json(
+      { error: 'rooms-gen: latest.json sin rooms válidos', rooms: [] },
+      { status: 200 }
+    )
+  }
+
+  return NextResponse.json({ generatedAt: data.generatedAt ?? null, rooms })
 }
