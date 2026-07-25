@@ -15,3 +15,12 @@ GET /api/gateways/control
 POST /api/gateways/control
 GET /api/mcp-audit/verify
 POST /api/hermes/events
+# Fork routes (musalabalpha) without OpenAPI specs — TODO: add specs and remove from ignore
+GET /api/artifacts
+GET /api/capabilities
+GET /api/launchd
+POST /api/launchd
+GET /api/quests
+# PR #22 (bandeja de decisión) — TODO: add OpenAPI spec and remove from ignore
+GET /api/bandeja
+POST /api/bandeja
