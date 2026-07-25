@@ -4,6 +4,7 @@ import os from 'node:os'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { logger } from '@/lib/logger'
+import { denyUnscopedResourceForStrictWorkspace } from '@/lib/workspace-isolation'
 import { runCommand } from '@/lib/command'
 import { getOpenCodeExecutable } from '@/lib/opencode-sessions'
 
@@ -64,11 +65,6 @@ async function resolveClaudeSessionCwd(sessionId: string): Promise<string | null
   }
   for (const encoded of entries) {
     const candidate = path.join(projectsRoot, encoded, `${sessionId}.jsonl`)
-    try {
-      await fs.access(candidate)
-    } catch {
-      continue
-    }
     // Read up to ~64KB and walk lines until we find a `cwd` field.
     let head: string
     try {
@@ -81,7 +77,7 @@ async function resolveClaudeSessionCwd(sessionId: string): Promise<string | null
         await handle.close()
       }
     } catch {
-      return null
+      continue
     }
     for (const line of head.split('\n')) {
       const trimmed = line.trim()
@@ -171,6 +167,8 @@ async function getSessionJsonlMtime(sessionId: string): Promise<number | null> {
 export async function POST(request: NextRequest) {
   const auth = requireRole(request, 'operator')
   if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
+  const isolationDenied = denyUnscopedResourceForStrictWorkspace(auth.user, 'local_sessions', new URL(request.url).pathname)
+  if (isolationDenied) return isolationDenied
 
   try {
     const body = await request.json().catch(() => ({}))

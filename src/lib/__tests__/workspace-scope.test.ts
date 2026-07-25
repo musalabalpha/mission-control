@@ -165,7 +165,7 @@ describe('requireAgentSelfAccess — agent key (numeric ID path)', () => {
     expect(result!.status).toBe(403)
   })
 
-  it('blocks numeric path when agent_id is not set (fail closed — cannot verify ownership)', () => {
+  it('denies numeric paths when authenticated agent ownership is ambiguous', () => {
     const user = makeUser({ agent_name: 'repo-steward', agent_id: null, role: 'operator' })
     const result = requireAgentSelfAccess(user, '42')
     expect(result).not.toBeNull()

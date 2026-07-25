@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { useMissionControl } from '@/store'
+import { apiFetch, ApiError } from '@/lib/api-client'
 
 interface OpenClawDoctorStatus {
   level: 'healthy' | 'warning' | 'error'

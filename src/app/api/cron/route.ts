@@ -5,6 +5,7 @@ import { logger } from '@/lib/logger'
 import { readFile, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
+import { denyUnscopedResourceForStrictWorkspace } from '@/lib/workspace-isolation'
 
 interface CronJob {
   name: string
@@ -207,6 +208,8 @@ function mapOpenClawJob(job: OpenClawCronJob): CronJob {
 export async function GET(request: NextRequest) {
   const auth = requireRole(request, 'admin')
   if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
+  const isolationDeny = denyUnscopedResourceForStrictWorkspace(auth.user, 'runtime_configuration', new URL(request.url).pathname)
+  if (isolationDeny) return isolationDeny
 
   try {
     const { searchParams } = new URL(request.url)
@@ -341,6 +344,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const auth = requireRole(request, 'admin')
   if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
+  const isolationDeny = denyUnscopedResourceForStrictWorkspace(auth.user, 'runtime_configuration', new URL(request.url).pathname)
+  if (isolationDeny) return isolationDeny
 
   try {
     const body = await request.json()

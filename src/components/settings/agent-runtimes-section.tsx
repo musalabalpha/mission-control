@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Loader } from '@/components/ui/loader'
 import { RuntimeSetupModal } from '@/components/onboarding/runtime-setup-modal'
+import { apiFetch, ApiError } from '@/lib/api-client'
 
 interface RuntimeStatus {
   id: string
@@ -29,9 +30,25 @@ interface Props {
   showFeedback: (ok: boolean, text: string) => void
 }
 
+interface RuntimeResponse {
+  runtimes?: RuntimeStatus[]
+  isDocker?: boolean
+  runtimeInstallsEnabled?: boolean
+  job?: InstallJob
+  yaml?: string
+}
+
+function isRuntimeTransportFailure(error: unknown): boolean {
+  return (
+    error instanceof ApiError &&
+    (error.code === 'NETWORK_ERROR' || error.code === 'PARSE_ERROR')
+  )
+}
+
 export function AgentRuntimesSection({ showFeedback }: Props) {
   const [runtimes, setRuntimes] = useState<RuntimeStatus[]>([])
   const [isDocker, setIsDocker] = useState(false)
+  const [runtimeInstallsEnabled, setRuntimeInstallsEnabled] = useState(false)
   const [loading, setLoading] = useState(true)
   const [activeJobs, setActiveJobs] = useState<Record<string, InstallJob>>({})
   const [expandedOutput, setExpandedOutput] = useState<string | null>(null)
@@ -39,11 +56,10 @@ export function AgentRuntimesSection({ showFeedback }: Props) {
 
   const fetchRuntimes = useCallback(async () => {
     try {
-      const res = await fetch('/api/agent-runtimes')
-      if (!res.ok) return
-      const data = await res.json()
+      const data = await apiFetch<RuntimeResponse>('/api/agent-runtimes')
       setRuntimes(data.runtimes || [])
       setIsDocker(data.isDocker || false)
+      setRuntimeInstallsEnabled(data.runtimeInstallsEnabled === true)
     } catch {
       // ignore
     } finally {
@@ -61,20 +77,18 @@ export function AgentRuntimesSection({ showFeedback }: Props) {
     const interval = setInterval(async () => {
       for (const job of running) {
         try {
-          const res = await fetch('/api/agent-runtimes', {
+          const data = await apiFetch<RuntimeResponse>('/api/agent-runtimes', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action: 'job-status', jobId: job.id }),
           })
-          if (!res.ok) continue
-          const data = await res.json()
           if (data.job) {
-            setActiveJobs(prev => ({ ...prev, [data.job.runtime]: data.job }))
-            if (data.job.status === 'success') {
-              showFeedback(true, `${data.job.runtime} installed successfully`)
+            const runtimeJob = data.job
+            setActiveJobs(prev => ({ ...prev, [runtimeJob.runtime]: runtimeJob }))
+            if (runtimeJob.status === 'success') {
+              showFeedback(true, `${runtimeJob.runtime} installed successfully`)
               fetchRuntimes()
-            } else if (data.job.status === 'failed') {
-              showFeedback(false, `${data.job.runtime} install failed`)
+            } else if (runtimeJob.status === 'failed') {
+              showFeedback(false, `${runtimeJob.runtime} install failed`)
               fetchRuntimes()
             }
           }
@@ -89,18 +103,13 @@ export function AgentRuntimesSection({ showFeedback }: Props) {
 
   const handleInstall = async (runtimeId: string) => {
     try {
-      const res = await fetch('/api/agent-runtimes', {
+      const data = await apiFetch<RuntimeResponse>('/api/agent-runtimes', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'install', runtime: runtimeId, mode: 'local' }),
       })
-      if (!res.ok) {
-        showFeedback(false, 'Failed to start install')
-        return
-      }
-      const data = await res.json()
       if (data.job) {
-        setActiveJobs(prev => ({ ...prev, [runtimeId]: data.job }))
+        const runtimeJob = data.job
+        setActiveJobs(prev => ({ ...prev, [runtimeId]: runtimeJob }))
       }
     } catch {
       showFeedback(false, 'Failed to start install')
@@ -109,31 +118,29 @@ export function AgentRuntimesSection({ showFeedback }: Props) {
 
   const handleCopyCompose = async (runtimeId: string) => {
     try {
-      const res = await fetch('/api/agent-runtimes', {
+      const data = await apiFetch<RuntimeResponse>('/api/agent-runtimes', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'docker-compose', runtime: runtimeId }),
       })
-      if (!res.ok) return
-      const data = await res.json()
+      if (typeof data.yaml !== 'string') return
       await navigator.clipboard.writeText(data.yaml)
       showFeedback(true, 'Docker compose snippet copied')
-    } catch {
+    } catch (err) {
+      if (!isRuntimeTransportFailure(err)) return
       showFeedback(false, 'Failed to copy')
     }
   }
 
   const handleDetect = async (runtimeId: string) => {
     try {
-      const res = await fetch('/api/agent-runtimes', {
+      await apiFetch<RuntimeResponse>('/api/agent-runtimes', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'detect', runtime: runtimeId }),
       })
-      if (!res.ok) return
       await fetchRuntimes()
       showFeedback(true, 'Detection refreshed')
-    } catch {
+    } catch (err) {
+      if (!isRuntimeTransportFailure(err)) return
       showFeedback(false, 'Detection failed')
     }
   }
@@ -153,6 +160,12 @@ export function AgentRuntimesSection({ showFeedback }: Props) {
       <p className="text-xs text-muted-foreground mb-3">
         Install and manage agent runtimes for running AI agents.
       </p>
+
+      {!runtimeInstallsEnabled && (
+        <div className="mb-3 p-2 rounded border border-amber-500/20 bg-amber-500/5 text-xs text-muted-foreground">
+          Local installs are disabled by default. Review the runtime supply-chain settings before enabling them.
+        </div>
+      )}
 
       {isDocker && (
         <div className="mb-3 p-2 rounded border border-void-cyan/20 bg-void-cyan/5 text-xs text-muted-foreground">
@@ -181,7 +194,7 @@ export function AgentRuntimesSection({ showFeedback }: Props) {
               {/* Installing shimmer + progress */}
               {isInstalling && (
                 <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-emerald-500/5 to-transparent animate-[shimmer_2s_infinite]" style={{ backgroundSize: '200% 100%' }} />
+                  <div className="absolute inset-0 bg-linear-to-r from-transparent via-emerald-500/5 to-transparent animate-[shimmer_2s_infinite]" style={{ backgroundSize: '200% 100%' }} />
                   <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-border/20 overflow-hidden">
                     <div className="h-full bg-emerald-500/60 animate-[indeterminate_1.5s_infinite_ease-in-out]" />
                   </div>
@@ -241,7 +254,16 @@ export function AgentRuntimesSection({ showFeedback }: Props) {
                         <Button variant="ghost" size="sm" onClick={() => handleDetect(rt.id)} className="text-2xs h-6 px-2">Refresh</Button>
                         {!rt.installed && !justInstalled && (
                           <>
-                            <Button variant="ghost" size="sm" onClick={() => handleInstall(rt.id)} className="text-2xs h-6 px-2">Install</Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled={!runtimeInstallsEnabled}
+                              title={runtimeInstallsEnabled ? undefined : 'Enable reviewed runtime installs in the server environment first'}
+                              onClick={() => handleInstall(rt.id)}
+                              className="text-2xs h-6 px-2"
+                            >
+                              Install
+                            </Button>
                             {isDocker && (
                               <Button variant="ghost" size="sm" onClick={() => handleCopyCompose(rt.id)} className="text-2xs h-6 px-2">Sidecar YAML</Button>
                             )}
@@ -270,7 +292,7 @@ export function AgentRuntimesSection({ showFeedback }: Props) {
                     {installFailed && (
                       <div className="mt-2 space-y-1">
                         <p className="text-2xs text-red-400">Install failed: {job?.error || 'Unknown error'}</p>
-                        <Button variant="ghost" size="sm" onClick={() => handleInstall(rt.id)} className="text-2xs h-6 px-2">Retry</Button>
+                        <Button variant="ghost" size="sm" disabled={!runtimeInstallsEnabled} onClick={() => handleInstall(rt.id)} className="text-2xs h-6 px-2">Retry</Button>
                       </div>
                     )}
 

@@ -65,7 +65,7 @@ export function enforceWorkspaceBoundary(user: User, resourceWorkspaceId: number
  *
  * Accepts the URL path segment which may be a name ("repo-steward") or a
  * numeric DB id ("42"). Compares by agent_id when numeric, by agent_name
- * when a name string. Falls through (allows) when type cannot be determined.
+ * when a name string. Ambiguous numeric ownership fails closed.
  *
  * Human users (no agent_name) and admin-scoped keys are not restricted.
  *

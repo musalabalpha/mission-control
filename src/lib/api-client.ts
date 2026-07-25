@@ -16,6 +16,7 @@
  *   - Always sends cookies (credentials: 'include')
  *   - On 401: emits an `mc:auth-expired` CustomEvent, redirects to /login?from=…
  *   - On 403: throws ApiError with code='FORBIDDEN'
+ *   - On other 4xx: throws ApiError with code='CLIENT_ERROR' unless raw mode is requested
  *   - On 5xx: throws ApiError with code='SERVER_ERROR' and the upstream message
  *   - On network failure: throws ApiError with code='NETWORK_ERROR'
  *
@@ -27,8 +28,8 @@ export type ApiErrorCode =
   | 'UNAUTHENTICATED'
   | 'FORBIDDEN'
   | 'NOT_FOUND'
+  | 'CLIENT_ERROR'
   | 'SERVER_ERROR'
-  | 'REQUEST_FAILED'
   | 'NETWORK_ERROR'
   | 'PARSE_ERROR'
 
@@ -62,7 +63,7 @@ function emitAuthExpired(detail: { path: string; status: number }): void {
 export interface ApiFetchOptions extends RequestInit {
   /** When true (default) and the response is 401, redirect to /login. */
   redirectOnUnauthenticated?: boolean
-  /** When true, return raw Response instead of parsed JSON. */
+  /** When true, return raw Response for statuses without specialized handling. */
   raw?: boolean
 }
 
@@ -112,7 +113,13 @@ export async function apiFetch<T = unknown>(
   }
 
   if (response.status === 404) {
-    throw new ApiError('NOT_FOUND', 404, `Not found: ${path}`)
+    const payload = await safeParseJson(response)
+    const msg =
+      (typeof payload === 'object' && payload !== null && 'error' in payload &&
+        typeof (payload as { error: unknown }).error === 'string'
+        ? (payload as { error: string }).error
+        : null) || `Not found: ${path}`
+    throw new ApiError('NOT_FOUND', 404, msg, payload)
   }
 
   if (response.status >= 500) {
@@ -125,21 +132,17 @@ export async function apiFetch<T = unknown>(
     throw new ApiError('SERVER_ERROR', response.status, msg, payload)
   }
 
-  // Any other non-2xx (400, 409, 422, 429, ...) — throw with the server payload
-  // so callers don't proceed on validation/conflict/rate-limit errors as if the
-  // response body were success data. Callers that need the raw error body opt in
-  // with `raw: true`.
-  if (!response.ok) {
+  if (raw) return response as unknown as T
+
+  if (response.status >= 400 && response.status < 500) {
     const payload = await safeParseJson(response)
     const msg =
       (typeof payload === 'object' && payload !== null && 'error' in payload &&
         typeof (payload as { error: unknown }).error === 'string'
         ? (payload as { error: string }).error
-        : null) || `Request failed (${response.status})`
-    throw new ApiError('REQUEST_FAILED', response.status, msg, payload)
+        : null) || `Request failed with status ${response.status}`
+    throw new ApiError('CLIENT_ERROR', response.status, msg, payload)
   }
-
-  if (raw) return response as unknown as T
 
   if (response.status === 204) return undefined as T
 
@@ -157,4 +160,3 @@ async function safeParseJson(res: Response): Promise<unknown> {
     return null
   }
 }
-

@@ -290,7 +290,7 @@ async function handleSync(
         metadata: JSON.parse(createdTask.metadata || '{}'),
       }
 
-      eventBus.broadcast('task.created', parsedTask)
+      eventBus.broadcast('task.created', { ...parsedTask, workspace_id: workspaceId })
       createdTasks.push(parsedTask)
       imported++
     } catch (err: any) {
@@ -329,6 +329,7 @@ async function handleSync(
   }
 
   eventBus.broadcast('github.synced', {
+    workspace_id: workspaceId,
     repo,
     imported,
     skipped,
