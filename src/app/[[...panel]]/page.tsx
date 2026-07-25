@@ -40,7 +40,6 @@ import { DebugPanel } from '@/components/panels/debug-panel'
 import { SecurityAuditPanel } from '@/components/panels/security-audit-panel'
 import { NodesPanel } from '@/components/panels/nodes-panel'
 import { ExecApprovalPanel } from '@/components/panels/exec-approval-panel'
-import { BandejaPanel } from '@/components/panels/bandeja-panel'
 import { SystemMonitorPanel } from '@/components/panels/system-monitor-panel'
 import { SystemPanel } from '@/components/panels/system-panel'
 import { CockpitPanel } from '@/components/panels/cockpit-panel'
@@ -665,12 +664,11 @@ function ContentRouter({ tab }: { tab: string }) {
       return <SecurityAuditPanel />
     case 'debug':
       return <DebugPanel />
+    // 'bandeja' es alias: la Bandeja vive dentro del panel de Approvals.
     case 'exec-approvals':
-      if (isLocal) return <LocalModeUnavailable panel={tab} />
-      return <ExecApprovalPanel />
     case 'bandeja':
       if (isLocal) return <LocalModeUnavailable panel={tab} />
-      return <BandejaPanel />
+      return <ExecApprovalPanel />
     case 'chat':
       return <ChatPagePanel />
     default: {

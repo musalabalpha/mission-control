@@ -1,7 +1,13 @@
 'use client'
 
 /**
- * Bandeja de Decisión — lo que espera un sí o un no de Musa, en un solo lugar.
+ * Bandeja de Decisión — lo que espera un sí o un no de Musa.
+ *
+ * Vive DENTRO del panel de Approvals, como su primera sección: ya existía un
+ * lugar que significa "cosas que te esperan" y abrir un segundo lo habría
+ * fragmentado, que es justo el problema que este diseño ataca. Los permisos de
+ * ejecución quedan debajo; la fase que los normalice al mismo modelo los funde
+ * en una sola lista.
  *
  * Fase 1: lee la cola de Linear ("In Review": trabajo terminado y congelado) y
  * deja despacharla sin salir del panel. El reloj se PINTA pero todavía no
@@ -73,7 +79,7 @@ function frasSiCallas(item: ItemBandeja): string {
   return 'se marca hecho'
 }
 
-export function BandejaPanel() {
+export function BandejaCola() {
   const [datos, setDatos] = useState<RespuestaBandeja | null>(null)
   const [cargando, setCargando] = useState(true)
   const [abierto, setAbierto] = useState<string | null>(null)
@@ -135,9 +141,9 @@ export function BandejaPanel() {
   })).filter((g) => g.items.length > 0)
 
   return (
-    <div className="m-4 max-w-4xl">
+    <section className="mb-8 max-w-4xl">
       <div className="flex items-baseline gap-3 mb-1">
-        <h1 className="text-lg font-semibold tracking-wide text-foreground">Bandeja</h1>
+        <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-foreground">Bandeja</h3>
         <span className="text-xs text-muted-foreground tabular-nums">
           {items.length} {items.length === 1 ? 'pendiente' : 'pendientes'}
           {urgentes > 0 && <span className="text-amber-400"> · {urgentes} vence pronto</span>}
@@ -314,7 +320,7 @@ export function BandejaPanel() {
           ver los otros {ocultos} ▾
         </button>
       )}
-    </div>
+    </section>
   )
 }
 
