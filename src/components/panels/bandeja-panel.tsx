@@ -143,7 +143,7 @@ export function BandejaCola() {
   return (
     <section className="mb-8 max-w-4xl">
       <div className="flex items-baseline gap-3 mb-1">
-        <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-foreground">Bandeja</h3>
+        <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-foreground">Inbox</h3>
         <span className="text-xs text-muted-foreground tabular-nums">
           {items.length} {items.length === 1 ? 'pendiente' : 'pendientes'}
           {urgentes > 0 && <span className="text-amber-400"> · {urgentes} vence pronto</span>}
