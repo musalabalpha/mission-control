@@ -112,7 +112,9 @@ const navItemTranslationKeys: Record<string, string> = {
   logs: 'logs',
   'cost-tracker': 'costTracker',
   nodes: 'nodes',
-  'exec-approvals': 'approvals',
+  // 'exec-approvals' se quedó sin clave a propósito: el panel se llama "Bandeja"
+  // desde el PR #22 y las traducciones de `nav.approvals` todavía dicen
+  // Approvals/Aprobaciones, que ganarían sobre el rótulo del rail.
   office: 'office',
   cron: 'cron',
   webhooks: 'webhooks',
