@@ -60,14 +60,14 @@ const navGroups: NavGroup[] = [
       { id: 'logs', label: 'Logs', icon: <LogsIcon />, priority: false, essential: true },
       { id: 'cost-tracker', label: 'Cost Tracker', icon: <TokensIcon />, priority: false },
       { id: 'nodes', label: 'Nodes', icon: <NodesIcon />, priority: false },
-      { id: 'exec-approvals', label: 'Approvals', icon: <ApprovalsIcon />, priority: false },
+      { id: 'exec-approvals', label: 'Inbox', icon: <BandejaIcon />, priority: true },
       { id: 'office', label: 'Office', icon: <OfficeIcon />, priority: false },
       { id: 'rooms', label: 'Rooms', icon: <OfficeIcon />, priority: false },
       { id: 'monitor', label: 'Monitor', icon: <MonitorIcon />, priority: false },
-      { id: 'system', label: 'Sistema', icon: <SystemIcon />, priority: false },
+      { id: 'system', label: 'System', icon: <SystemIcon />, priority: false },
       { id: 'cockpit', label: 'Cockpit', icon: <CockpitIcon />, priority: false },
       { id: 'quests', label: 'Quests', icon: <CockpitIcon />, priority: false },
-      { id: 'artifacts', label: 'Artefactos', icon: <ActivityIcon />, priority: false },
+      { id: 'artifacts', label: 'Artifacts', icon: <ActivityIcon />, priority: false },
     ],
   },
   {
@@ -114,7 +114,9 @@ const navItemTranslationKeys: Record<string, string> = {
   logs: 'logs',
   'cost-tracker': 'costTracker',
   nodes: 'nodes',
-  'exec-approvals': 'approvals',
+  // 'exec-approvals' se quedó sin clave a propósito: el panel se llama "Inbox"
+  // y las traducciones de `nav.approvals` todavía dicen Approvals/Aprobaciones,
+  // que ganarían sobre el rótulo del rail.
   office: 'office',
   cron: 'cron',
   webhooks: 'webhooks',
@@ -1521,6 +1523,17 @@ function ApprovalsIcon() {
       <path d="M8 1v4M4.5 3l2 2M11.5 3l-2 2" />
       <rect x="2" y="6" width="12" height="9" rx="1.5" />
       <path d="M5.5 10.5l2 2 3.5-4" />
+    </svg>
+  )
+}
+
+function BandejaIcon() {
+  // Bandeja de entrada con una manecilla: la cola que se vacía sola con el reloj.
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 9.5L3.8 3.5a1 1 0 01.95-.7h6.5a1 1 0 01.95.7L14 9.5" />
+      <path d="M2 9.5h3.2l.9 1.8h3.8l.9-1.8H14v2.7a1 1 0 01-1 1H3a1 1 0 01-1-1z" />
+      <path d="M8 4.6v1.9l1.3.8" />
     </svg>
   )
 }

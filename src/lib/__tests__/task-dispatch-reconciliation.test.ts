@@ -12,7 +12,7 @@ const mockDbState = vi.hoisted(() => ({
     project_ticket_no?: number | null
   }>,
   updates: [] as Array<{
-    outcome?: string
+    outcome: string
     resolution: string
     metadata: string
     taskId: number
@@ -330,6 +330,7 @@ describe('deferred task completion reconciliation', () => {
     const result = await reconcileDeferredTaskCompletions({ waitForRun })
 
     expect(result.promoted).toBe(1)
+    expect(mockDbState.updates[0].outcome).toBe('partial')
     expect(mockDbState.updates[0].resolution).toBe('Deferred agent run completed without textual output.')
     expect(mockDbState.comments[0]).toMatchObject({
       taskId: 14,
@@ -392,6 +393,7 @@ describe('deferred task completion reconciliation', () => {
     expect(result.promoted).toBe(1)
     expect(mockDbState.getAllGatewaySessions).toHaveBeenCalledWith(24 * 60 * 60 * 1000, true)
     expect(mockDbState.readSessionJsonl).toHaveBeenCalledWith('C:/openclaw', 'arnold', 'session-30')
+    expect(mockDbState.updates[0].outcome).toBe('partial')
     expect(mockDbState.updates[0].resolution).toBe('Recovered transcript response.')
     expect(mockDbState.comments[0]).toMatchObject({
       taskId: 30,

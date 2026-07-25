@@ -664,7 +664,11 @@ function ContentRouter({ tab }: { tab: string }) {
       return <SecurityAuditPanel />
     case 'debug':
       return <DebugPanel />
+    // 'inbox' y 'bandeja' son alias: la cola vive dentro del panel de Approvals.
+    // 'bandeja' se conserva por los enlaces que ya circulan.
     case 'exec-approvals':
+    case 'inbox':
+    case 'bandeja':
       if (isLocal) return <LocalModeUnavailable panel={tab} />
       return <ExecApprovalPanel />
     case 'chat':
