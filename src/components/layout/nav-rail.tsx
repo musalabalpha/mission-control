@@ -59,13 +59,13 @@ const navGroups: NavGroup[] = [
       { id: 'logs', label: 'Logs', icon: <LogsIcon />, priority: false, essential: true },
       { id: 'cost-tracker', label: 'Cost Tracker', icon: <TokensIcon />, priority: false },
       { id: 'nodes', label: 'Nodes', icon: <NodesIcon />, priority: false },
-      { id: 'exec-approvals', label: 'Bandeja', icon: <BandejaIcon />, priority: true },
+      { id: 'exec-approvals', label: 'Inbox', icon: <BandejaIcon />, priority: true },
       { id: 'office', label: 'Office', icon: <OfficeIcon />, priority: false },
       { id: 'monitor', label: 'Monitor', icon: <MonitorIcon />, priority: false },
-      { id: 'system', label: 'Sistema', icon: <SystemIcon />, priority: false },
+      { id: 'system', label: 'System', icon: <SystemIcon />, priority: false },
       { id: 'cockpit', label: 'Cockpit', icon: <CockpitIcon />, priority: false },
       { id: 'quests', label: 'Quests', icon: <CockpitIcon />, priority: false },
-      { id: 'artifacts', label: 'Artefactos', icon: <ActivityIcon />, priority: false },
+      { id: 'artifacts', label: 'Artifacts', icon: <ActivityIcon />, priority: false },
     ],
   },
   {
@@ -112,9 +112,9 @@ const navItemTranslationKeys: Record<string, string> = {
   logs: 'logs',
   'cost-tracker': 'costTracker',
   nodes: 'nodes',
-  // 'exec-approvals' se quedó sin clave a propósito: el panel se llama "Bandeja"
-  // desde el PR #22 y las traducciones de `nav.approvals` todavía dicen
-  // Approvals/Aprobaciones, que ganarían sobre el rótulo del rail.
+  // 'exec-approvals' se quedó sin clave a propósito: el panel se llama "Inbox"
+  // y las traducciones de `nav.approvals` todavía dicen Approvals/Aprobaciones,
+  // que ganarían sobre el rótulo del rail.
   office: 'office',
   cron: 'cron',
   webhooks: 'webhooks',
