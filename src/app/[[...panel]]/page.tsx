@@ -664,7 +664,9 @@ function ContentRouter({ tab }: { tab: string }) {
       return <SecurityAuditPanel />
     case 'debug':
       return <DebugPanel />
+    // 'bandeja' es alias: la Bandeja vive dentro del panel de Approvals.
     case 'exec-approvals':
+    case 'bandeja':
       if (isLocal) return <LocalModeUnavailable panel={tab} />
       return <ExecApprovalPanel />
     case 'chat':

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { useMissionControl, type ExecApprovalRequest } from '@/store'
 import { useWebSocket } from '@/lib/websocket'
 import { matchesGlobPattern } from '@/lib/exec-approval-utils'
+import { BandejaCola } from '@/components/panels/bandeja-panel'
 
 type FilterTab = 'all' | 'pending' | 'resolved'
 type PanelView = 'approvals' | 'allowlist'
@@ -126,6 +127,15 @@ export function ExecApprovalPanel() {
 
       {view === 'approvals' ? (
         <>
+          {/* Bandeja de Decisión: la cola de Linear vive arriba, en la misma
+              pantalla. Un segundo panel para "cosas que te esperan" habría
+              fragmentado justo lo que este diseño intenta juntar. */}
+          <BandejaCola />
+
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.18em] text-foreground">
+            Permisos de ejecución
+          </h3>
+
           {/* Filter tabs */}
           <div className="flex gap-1 mb-4">
             {(['all', 'pending', 'resolved'] as const).map((tab) => (
