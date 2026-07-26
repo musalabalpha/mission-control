@@ -4,8 +4,12 @@
 // Un launcher centrado de tiles-app grandes, UN número vivo por tile, y el único
 // pulso permitido (ámbar te-necesita) cuando algo espera a Musa. Cero charts aquí:
 // una decisión por pantalla; el Dashboard denso vive en el tile Cockpit.
+//
+// v2 (feedback Musa 26-jul): escala +33%, tipografía mono del Brand Book,
+// color único por módulo para identificarlos, iconos pixel-art 8-bit (vibra
+// Tibia años 90/2000). Ámbar sigue siendo lo ÚNICO que pulsa.
 
-import { useCallback, useState, type ReactElement } from 'react'
+import { useCallback, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSmartPoll } from '@/lib/use-smart-poll'
 
@@ -18,7 +22,8 @@ interface Tile {
   id: string
   label: string
   sub: string
-  icon: ReactElement
+  color: string
+  pixels: string[]
   statKey: keyof HomeStats
 }
 
@@ -44,33 +49,137 @@ const EMPTY: HomeStats = {
   cockpit: { value: null, needsYou: false },
 }
 
-// Iconos inline (stroke currentColor) — mismos trazos 1.5px del nav-rail.
-function I({ d }: { d: string }) {
+// Iconos 8-bit: grid de 'x' → un rect por píxel, crispEdges. Sin librerías.
+function pxPath(rows: string[]): string {
+  let d = ''
+  rows.forEach((row, y) => {
+    for (let x = 0; x < row.length; x++) {
+      if (row[x] === 'x') d += `M${x} ${y}h1v1h-1z`
+    }
+  })
+  return d
+}
+
+function PixelIcon({ rows }: { rows: string[] }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"
-      strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8" aria-hidden>
-      <path d={d} />
+    <svg
+      viewBox={`0 0 ${rows[0].length} ${rows.length}`}
+      className="w-12 h-12"
+      shapeRendering="crispEdges"
+      aria-hidden
+    >
+      <path d={pxPath(rows)} fill="currentColor" />
     </svg>
   )
 }
 
+// Pergamino de encargos
+const PX_TASKS = [
+  '..xxxxxxxx..',
+  '.x........x.',
+  '.x.xxxxxx.x.',
+  '.x........x.',
+  '.x.xxxxxx.x.',
+  '.x........x.',
+  '.x.xxxx...x.',
+  '.x........x.',
+  '.x........x.',
+  '..xxxxxxxx..',
+]
+// Cofre del tesoro
+const PX_ARTIFACTS = [
+  '..xxxxxxxx..',
+  '.x........x.',
+  '.x........x.',
+  '.xxxxxxxxxx.',
+  '.x...xx...x.',
+  '.x...xx...x.',
+  '.x........x.',
+  '.x........x.',
+  '.xxxxxxxxxx.',
+]
+// Casco de la tripulación
+const PX_AGENTS = [
+  '...xxxxxx...',
+  '..x......x..',
+  '.x........x.',
+  '.x.xx..xx.x.',
+  '.x........x.',
+  '.x........x.',
+  '..x......x..',
+  '...xx..xx...',
+  '...x.xx.x...',
+  '...xxxxxx...',
+]
+// Reloj de arena
+const PX_CRONS = [
+  '.xxxxxxxxxx.',
+  '..x......x..',
+  '...x....x...',
+  '....x..x....',
+  '.....xx.....',
+  '.....xx.....',
+  '....x..x....',
+  '...x.xx.x...',
+  '..x.xxxx.x..',
+  '.xxxxxxxxxx.',
+]
+// Rama (branch) con dos nodos
+const PX_GITHUB = [
+  '.xx.........',
+  '.xx......xx.',
+  '..x......xx.',
+  '..x.....x...',
+  '..x....x....',
+  '..xxxxx.....',
+  '..x.........',
+  '..x.........',
+  '.xx.........',
+]
+// Estrella de quest
+const PX_QUESTS = [
+  '.....xx.....',
+  '.....xx.....',
+  '....xxxx....',
+  'xxxxxxxxxxxx',
+  '.xxxxxxxxxx.',
+  '...xxxxxx...',
+  '..xxx..xxx..',
+  '.xx......xx.',
+]
+// Burbuja de chat
+const PX_CHAT = [
+  '..xxxxxxxx..',
+  '.x........x.',
+  '.x........x.',
+  '.x........x.',
+  '.x........x.',
+  '..xxxxxxxx..',
+  '....xx......',
+  '...x........',
+]
+// Cuadrícula del tablero denso
+const PX_COCKPIT = [
+  '.xxxxxxxxxx.',
+  '.x...x....x.',
+  '.x...x....x.',
+  '.xxxxxxxxxx.',
+  '.x...x....x.',
+  '.x...x....x.',
+  '.xxxxxxxxxx.',
+]
+
+// Un color por módulo (identificación, no semántica): el ámbar del Brand Book
+// queda reservado al dot "te necesita" y el coral a errores reales.
 const TILES: Tile[] = [
-  { id: 'tasks', label: 'TASKS', sub: 'pendientes', statKey: 'tasks',
-    icon: <I d="M9 6h11M9 12h11M9 18h11M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2" /> },
-  { id: 'artifacts', label: 'ARTIFACTS', sub: 'entregables', statKey: 'artifacts',
-    icon: <I d="M4 4h16v16H4zM4 9h16M9 9v11" /> },
-  { id: 'agents', label: 'AGENTES', sub: 'en el roster', statKey: 'agents',
-    icon: <I d="M12 8a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-7 13a7 7 0 0 1 14 0M12 8v4" /> },
-  { id: 'cron', label: 'CRONS', sub: 'programados', statKey: 'crons',
-    icon: <I d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2" /> },
-  { id: 'github', label: 'GITHUB', sub: 'PRs abiertos', statKey: 'github',
-    icon: <I d="M6 3a3 3 0 1 0 0 6 3 3 0 0 0 0-6zm12 12a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM6 9v3a6 6 0 0 0 6 6h3" /> },
-  { id: 'quests', label: 'QUESTS', sub: 'del día', statKey: 'quests',
-    icon: <I d="M12 2l2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.5-4.8 2.5.9-5.4L4.2 7.7l5.4-.8z" /> },
-  { id: 'chat', label: 'CHAT', sub: 'con Helix', statKey: 'chat',
-    icon: <I d="M21 12a8 8 0 0 1-8 8H4l2-3a8 8 0 1 1 15-5z" /> },
-  { id: 'dashboard', label: 'TABLERO', sub: 'vista densa', statKey: 'cockpit',
-    icon: <I d="M3 12h4l2-7 4 14 2-7h6" /> },
+  { id: 'tasks', label: 'TASKS', sub: 'pendientes', statKey: 'tasks', color: '#6aa6ff', pixels: PX_TASKS },
+  { id: 'artifacts', label: 'ARTIFACTS', sub: 'entregables', statKey: 'artifacts', color: '#f5c451', pixels: PX_ARTIFACTS },
+  { id: 'agents', label: 'AGENTES', sub: 'en el roster', statKey: 'agents', color: '#a78bfa', pixels: PX_AGENTS },
+  { id: 'cron', label: 'CRONS', sub: 'programados', statKey: 'crons', color: '#46e0a0', pixels: PX_CRONS },
+  { id: 'github', label: 'GITHUB', sub: 'PRs abiertos', statKey: 'github', color: '#e88bf7', pixels: PX_GITHUB },
+  { id: 'quests', label: 'QUESTS', sub: 'del día', statKey: 'quests', color: '#f0982e', pixels: PX_QUESTS },
+  { id: 'chat', label: 'CHAT', sub: 'con Helix', statKey: 'chat', color: '#5ad1e6', pixels: PX_CHAT },
+  { id: 'dashboard', label: 'TABLERO', sub: 'vista densa', statKey: 'cockpit', color: '#a3e635', pixels: PX_COCKPIT },
 ]
 
 async function safeJson(url: string): Promise<any | null> {
@@ -116,39 +225,45 @@ export function HomeLauncher() {
   const needsYouCount = Object.values(stats).filter(s => s.needsYou).length
 
   return (
-    <div className="min-h-[calc(100vh-56px)] flex flex-col items-center justify-center px-6 py-10">
-      <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground mb-2">
+    <div className="min-h-[calc(100vh-56px)] flex flex-col items-center justify-center px-6 py-10 font-mono">
+      <p className="text-sm uppercase tracking-[0.44em] text-muted-foreground mb-3">
         Helix Mission Control
       </p>
-      <h1 className="text-lg text-primary mb-1">¿Dónde quieres estar?</h1>
-      <p className="text-sm text-muted-foreground mb-10 font-sans">
+      <h1 className="text-2xl text-primary tracking-[0.08em] mb-2">¿Dónde quieres estar?</h1>
+      <p className="text-base text-muted-foreground mb-12">
         {needsYouCount > 0
           ? `${needsYouCount} ${needsYouCount === 1 ? 'área te necesita' : 'áreas te necesitan'}`
           : 'nada urgente — todo corre solo'}
       </p>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full max-w-2xl" role="navigation" aria-label="Secciones">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-5 w-full max-w-[880px]" role="navigation" aria-label="Secciones">
         {TILES.map(tile => {
           const s = stats[tile.statKey]
           return (
             <button
               key={tile.id}
               onClick={() => router.push(`/${tile.id}`)}
-              className="group relative flex flex-col items-center gap-2 rounded-xl border border-border
-                bg-card px-4 py-6 transition-colors duration-150 hover:border-primary/60
+              style={{ ['--tile' as string]: tile.color, borderColor: `${tile.color}40` }}
+              className="group relative flex flex-col items-center gap-3 rounded-2xl border
+                bg-card px-5 py-9 transition-all duration-75 ease-linear
+                hover:border-[color:var(--tile)] hover:shadow-[0_0_28px_-8px_var(--tile)]
+                hover:-translate-y-0.5
                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               {s.needsYou && (
                 <span
                   aria-label="te necesita"
-                  className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-warning motion-safe:animate-pulse"
+                  className="absolute top-3 right-3 w-2.5 h-2.5 rounded-full bg-warning motion-safe:animate-pulse"
                 />
               )}
-              <span className="text-muted-foreground group-hover:text-primary transition-colors duration-150">
-                {tile.icon}
+              <span
+                style={{ color: tile.color }}
+                className="transition-transform duration-75 ease-linear group-hover:scale-110"
+              >
+                <PixelIcon rows={tile.pixels} />
               </span>
-              <span className="text-xs tracking-[0.18em]">{tile.label}</span>
-              <span className="text-[11px] text-muted-foreground leading-none">
+              <span className="text-[15px] tracking-[0.18em]">{tile.label}</span>
+              <span className="text-sm text-muted-foreground leading-none">
                 {s.value !== null ? (
                   <><span className="text-foreground tabular-nums">{s.value}</span> {tile.sub}</>
                 ) : (
