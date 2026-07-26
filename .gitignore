@@ -52,3 +52,6 @@ docs/_*.png
 .vs/
 .gstack/
 .data-draft/
+
+# Agent worktrees — local scratch, never part of a release
+.claude/worktrees/

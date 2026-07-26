@@ -24,3 +24,7 @@ GET /api/quests
 # PR #22 (bandeja de decisión) — TODO: add OpenAPI spec and remove from ignore
 GET /api/bandeja
 POST /api/bandeja
+# Fork: local-arm builder queue panel — TODO: add OpenAPI spec and remove from ignore
+GET /api/builder
+# PR #19 (rooms view, HLX-433) — TODO: add OpenAPI spec and remove from ignore
+GET /api/rooms
