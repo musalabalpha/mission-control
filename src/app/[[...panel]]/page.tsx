@@ -460,8 +460,10 @@ export default function Home() {
         {tc('skipToMainContent')}
       </a>
 
-      {/* Left: Icon rail navigation (hidden on mobile, shown as bottom bar instead) */}
-      {!showOnboarding && <NavRail />}
+      {/* Left: Icon rail navigation (hidden on mobile, shown as bottom bar instead).
+          HLX-299: en la home (launcher) el rail se oculta — un solo sistema de
+          navegación por pantalla; el rail vuelve dentro de cualquier panel. */}
+      {!showOnboarding && activeTab !== 'overview' && <NavRail />}
 
       {/* Center: Header + Content */}
       <div className="flex-1 flex flex-col min-w-0">
