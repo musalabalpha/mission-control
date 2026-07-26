@@ -53,6 +53,13 @@ export async function GET(
 ) {
   const auth = requireRole(request, 'viewer')
   if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
+  const isolationDeny = denyUnscopedResourceForStrictWorkspace(
+    auth.user,
+    'agent_filesystem',
+    new URL(request.url).pathname,
+  )
+  if (isolationDeny) return isolationDeny
+
   try {
     const { id } = await params
     // Self-access check runs before the workspace-isolation lookup: a caller that
@@ -108,6 +115,13 @@ export async function PUT(
 ) {
   const auth = requireRole(request, 'operator')
   if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
+  const isolationDeny = denyUnscopedResourceForStrictWorkspace(
+    auth.user,
+    'agent_filesystem',
+    new URL(request.url).pathname,
+  )
+  if (isolationDeny) return isolationDeny
+
   try {
     const { id } = await params
     // Self-access check runs before the workspace-isolation lookup (see GET).

@@ -60,3 +60,28 @@ Si un cherry-pick toca estos archivos, se resuelve a favor nuestro:
 
 Último sync con upstream: v2.2.0 (jul-2026) — merge del tag `v2.2.0`, 126 commits,
 421 archivos, 10 conflictos. `pnpm lint`/`typecheck`/`test` (1535) y `build` en verde.
+
+## Sync v2.3.0 (2026-07-26)
+
+Merge del tag `v2.3.0` (144 commits upstream, 23 conflictos). Trae los parches
+de 13 advisories (8 high: SSRF en Server Actions, bypass de middleware, DoS),
+el guard permanente de paridad de locales (#907), `MC_DISABLE_RUNTIME_SCAN`
+(#895) y el toolchain de test en vite 8 / vitest 4 / plugin-react 6.
+
+Resolución de conflictos — el fork conservó sus piezas de carga:
+
+- `next.config.js`: pin del image-optimizer en el standalone (incidente 17-jul).
+- `task-dispatch.ts`: tope de reintentos de Aegis review (HLX-300); upstream
+  aún reintenta sin límite.
+- `local-agent-sync.ts`: telemetría `purged` de skill-rows (#14).
+- Doctor route: manejo del puerto 18789 compartido con Tailscale Serve.
+- Doctor banner: sigue sin botón Fix (HLX-290 / incidente HLX-252).
+- `exec-approval-panel.tsx`: la Bandeja/Inbox vive dentro de Approvals.
+- Tests: se restauró la versión fork de `openclaw-maintenance-client-security`
+  y se añadió mock de `workspace-isolation` a los tests de files/soul (los
+  checks nuevos de aislamiento tocan la DB real).
+
+Upstream ganó en: bumps de dependencias y versión (2.3.0), checks nuevos de
+aislamiento por workspace en files/soul (aditivos), workflows de CI, README,
+CHANGELOG. Validación: parity OK, lint 0 errores, typecheck limpio,
+**1571 tests / 180 archivos en verde**, `pnpm build` OK con optimizer empaquetado.

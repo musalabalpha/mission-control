@@ -19,6 +19,12 @@ vi.mock('@/lib/agent-workspace', () => ({
 vi.mock('@/lib/paths', () => ({
   resolveWithin: vi.fn((base: string, name: string) => `${base}/${name}`),
 }))
+// v2.3.0 isolation checks hit the real db; these tests cover the self-access
+// denial that runs in the 'standard' isolation mode.
+vi.mock('@/lib/workspace-isolation', () => ({
+  getWorkspaceIsolation: vi.fn(() => 'standard'),
+  denyUnscopedResourceForStrictWorkspace: vi.fn(() => null),
+}))
 
 describe('agent files route security', () => {
   beforeEach(() => {

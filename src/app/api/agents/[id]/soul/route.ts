@@ -26,6 +26,10 @@ export async function GET(
 ) {
   const auth = requireRole(request, 'viewer')
   if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
+  const isolation = getWorkspaceIsolation(auth.user)
+  if (!isolation) return NextResponse.json({ error: 'Workspace isolation context is unavailable' }, { status: 403 })
+  const isStrictWorkspace = isolation === 'strict'
+
   try {
     const resolvedParams = await params;
     const agentId = resolvedParams.id;
@@ -117,6 +121,10 @@ export async function PUT(
 ) {
   const auth = requireRole(request, 'operator');
   if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
+  const isolation = getWorkspaceIsolation(auth.user)
+  if (!isolation) return NextResponse.json({ error: 'Workspace isolation context is unavailable' }, { status: 403 })
+  const isStrictWorkspace = isolation === 'strict'
+
   try {
     const resolvedParams = await params;
     const agentId = resolvedParams.id;
