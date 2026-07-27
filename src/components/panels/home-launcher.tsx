@@ -687,11 +687,7 @@ export function HomeLauncher() {
                 onClick={() => router.push(`/${tile.id}`)}
                 aria-label={tile.name}
                 style={{ ['--tile' as string]: tile.color, borderColor: `${tile.color}40` }}
-                className="group relative flex flex-col items-center justify-center gap-0 rounded-2xl border
-                  bg-card px-5 py-10 min-h-[128px] transition-all duration-150 ease-out
-                  hover:border-[color:var(--tile)] hover:shadow-[0_12px_34px_-14px_var(--tile)]
-                  hover:-translate-y-0.5
-                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="group relative flex flex-col items-center justify-center gap-0 rounded-2xl border bg-card px-5 py-10 min-h-[128px] transition-all duration-150 ease-out hover:border-[color:var(--tile)] hover:shadow-[0_12px_34px_-14px_var(--tile)] hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 {/* Brackets de targeting — solo se iluminan al hover. */}
                 <span className="absolute top-2 left-2 w-3 h-3 border-t-2 border-l-2 border-border opacity-45 transition-opacity group-hover:opacity-100 group-hover:border-[color:var(--tile)]" />

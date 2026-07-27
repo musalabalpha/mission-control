@@ -1535,6 +1535,72 @@ const migrations: Migration[] = [
         CREATE INDEX idx_agents_source ON agents(source);
       `)
     }
+  },
+  {
+    id: '055_ai_treasury_ledger',
+    up(db: Database.Database) {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS ai_usage_events (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          event_key TEXT NOT NULL,
+          workspace_id INTEGER NOT NULL DEFAULT 1,
+          source TEXT NOT NULL,
+          source_event_id TEXT,
+          occurred_at INTEGER NOT NULL,
+          provider TEXT NOT NULL,
+          model TEXT NOT NULL,
+          runtime TEXT NOT NULL,
+          billing_mode TEXT NOT NULL DEFAULT 'unknown',
+          input_tokens INTEGER NOT NULL DEFAULT 0,
+          output_tokens INTEGER NOT NULL DEFAULT 0,
+          cache_read_tokens INTEGER NOT NULL DEFAULT 0,
+          cache_write_tokens INTEGER NOT NULL DEFAULT 0,
+          request_count INTEGER NOT NULL DEFAULT 1,
+          reported_cost_usd REAL,
+          estimated_cost_usd REAL,
+          actual_cost_usd REAL,
+          rate_card_version TEXT,
+          subscription_id TEXT,
+          linear_issue TEXT,
+          project_ref TEXT,
+          owner TEXT,
+          task_type TEXT,
+          outcome TEXT NOT NULL DEFAULT 'unknown',
+          evidence_ref TEXT,
+          metadata TEXT NOT NULL DEFAULT '{}',
+          ingested_at INTEGER NOT NULL DEFAULT (unixepoch()),
+          UNIQUE(workspace_id, event_key)
+        );
+        CREATE INDEX IF NOT EXISTS idx_ai_usage_events_workspace_occurred
+          ON ai_usage_events(workspace_id, occurred_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_ai_usage_events_provider_model
+          ON ai_usage_events(provider, model);
+        CREATE INDEX IF NOT EXISTS idx_ai_usage_events_linear_issue
+          ON ai_usage_events(linear_issue) WHERE linear_issue IS NOT NULL;
+
+        CREATE TABLE IF NOT EXISTS ai_subscriptions (
+          id TEXT PRIMARY KEY,
+          workspace_id INTEGER NOT NULL DEFAULT 1,
+          provider TEXT NOT NULL,
+          product TEXT NOT NULL,
+          billing_mode TEXT NOT NULL,
+          cost_amount REAL,
+          currency TEXT NOT NULL DEFAULT 'USD',
+          cadence TEXT,
+          renews_on TEXT,
+          cancellation_notice_days INTEGER,
+          owner TEXT,
+          evidence_ref TEXT,
+          status TEXT NOT NULL DEFAULT 'unknown',
+          metadata TEXT NOT NULL DEFAULT '{}',
+          created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+          updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+          UNIQUE(workspace_id, provider, product)
+        );
+        CREATE INDEX IF NOT EXISTS idx_ai_subscriptions_workspace_status
+          ON ai_subscriptions(workspace_id, status);
+      `)
+    }
   }
 ]
 
