@@ -13,6 +13,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useSmartPoll } from '@/lib/use-smart-poll'
 import { apiFetch } from '@/lib/api-client'
+import { safeEvidenceHref } from '@/lib/agent-request-links'
 
 type AgentRequestStatus =
   | 'queued'
@@ -250,17 +251,28 @@ export function AgentRequestsPanel() {
                         )}
                         {(detail.evidence.length > 0 || detail.contextLinks.length > 0) && (
                           <div className="flex flex-wrap gap-2 pt-1">
-                            {[...detail.evidence, ...detail.contextLinks].map((link) => (
-                              <a
-                                key={link}
-                                href={link}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="rounded border border-border px-2 py-0.5 text-[11px] text-blue-400 hover:bg-secondary/40"
-                              >
-                                view evidence ↗
-                              </a>
-                            ))}
+                            {[...detail.evidence, ...detail.contextLinks].map((link) => {
+                              const href = safeEvidenceHref(link)
+                              return href ? (
+                                <a
+                                  key={link}
+                                  href={href}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="rounded border border-border px-2 py-0.5 text-[11px] text-blue-400 hover:bg-secondary/40"
+                                >
+                                  view evidence ↗
+                                </a>
+                              ) : (
+                                <span
+                                  key={link}
+                                  title="blocked: unsupported link scheme"
+                                  className="rounded border border-border px-2 py-0.5 text-[11px] text-muted-foreground line-through"
+                                >
+                                  {link.slice(0, 40)}
+                                </span>
+                              )
+                            })}
                           </div>
                         )}
                       </div>
