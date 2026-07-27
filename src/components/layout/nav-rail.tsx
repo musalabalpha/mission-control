@@ -61,6 +61,7 @@ const navGroups: NavGroup[] = [
       { id: 'cost-tracker', label: 'Cost Tracker', icon: <TokensIcon />, priority: false },
       { id: 'nodes', label: 'Nodes', icon: <NodesIcon />, priority: false },
       { id: 'exec-approvals', label: 'Inbox', icon: <BandejaIcon />, priority: true },
+      { id: 'agent-requests', label: 'Agent Requests', icon: <AgentRequestsIcon />, priority: false },
       { id: 'office', label: 'Office', icon: <OfficeIcon />, priority: false },
       { id: 'rooms', label: 'Rooms', icon: <OfficeIcon />, priority: false },
       { id: 'monitor', label: 'Monitor', icon: <MonitorIcon />, priority: false },
@@ -1523,6 +1524,17 @@ function ApprovalsIcon() {
       <path d="M8 1v4M4.5 3l2 2M11.5 3l-2 2" />
       <rect x="2" y="6" width="12" height="9" rx="1.5" />
       <path d="M5.5 10.5l2 2 3.5-4" />
+    </svg>
+  )
+}
+
+function AgentRequestsIcon() {
+  // Speech bubble with a question mark: an agent waiting on an answer.
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 3.5h12v7H6.5L3.5 13v-2.5H2z" />
+      <path d="M6.6 6.3a1.4 1.4 0 112.1 1.2c-.5.3-.7.6-.7 1.1" />
+      <path d="M8 10.6h.01" />
     </svg>
   )
 }
