@@ -9,6 +9,7 @@ describe('buildMissionControlCsp', () => {
     expect(csp).toContain("style-src 'self' 'unsafe-inline'")
     expect(csp).toContain("style-src-elem 'self' 'unsafe-inline'")
     expect(csp).toContain("style-src-attr 'unsafe-inline'")
+    expect(csp).toContain('frame-src \'self\' http://127.0.0.1:8446')
   })
 })
 

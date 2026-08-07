@@ -13,7 +13,8 @@ export function buildMissionControlCsp(input: { nonce: string; googleEnabled: bo
     `connect-src 'self' ws: wss: http://127.0.0.1:* http://localhost:* https://cdn.jsdelivr.net`,
     `img-src 'self' data: blob:${googleEnabled ? ' https://*.googleusercontent.com https://lh3.googleusercontent.com' : ''}`,
     `font-src 'self' data:`,
-    `frame-src 'self'${googleEnabled ? ' https://accounts.google.com' : ''}`,
+    // Artifacts gallery (:8446) se embebe en el panel Artefactos y en task-deliverables.
+    `frame-src 'self' http://127.0.0.1:8446 http://localhost:8446 https://helix.tail304cfc.ts.net:8446${googleEnabled ? ' https://accounts.google.com' : ''}`,
     `worker-src 'self' blob:`,
   ].join('; ')
 }
