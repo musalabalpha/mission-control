@@ -13,6 +13,18 @@ describe('buildMissionControlCsp', () => {
     expect(csp).toContain('http://localhost:8446')
     expect(csp).toContain('https://helix.tail304cfc.ts.net:8446')
     expect(csp).not.toContain('frame-src *')
+    expect(csp).not.toContain('unsafe-eval')
+  })
+
+  it('allows eval only when explicitly enabled for development', () => {
+    const csp = buildMissionControlCsp({
+      nonce: 'nonce-123',
+      googleEnabled: false,
+      allowEval: true,
+    })
+
+    expect(csp).toContain("'unsafe-eval'")
+    expect(csp).toContain(`script-src 'self' 'nonce-nonce-123' 'strict-dynamic' blob: 'unsafe-eval'`)
   })
 })
 

@@ -1,12 +1,17 @@
-export function buildMissionControlCsp(input: { nonce: string; googleEnabled: boolean }): string {
-  const { nonce, googleEnabled } = input
+export function buildMissionControlCsp(input: {
+  nonce: string
+  googleEnabled: boolean
+  allowEval?: boolean
+}): string {
+  const { nonce, googleEnabled, allowEval = false } = input
+  const evalSrc = allowEval ? " 'unsafe-eval'" : ''
 
   return [
     `default-src 'self'`,
     `base-uri 'self'`,
     `object-src 'none'`,
     `frame-ancestors 'none'`,
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' blob:${googleEnabled ? ' https://accounts.google.com' : ''}`,
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' blob:${evalSrc}${googleEnabled ? ' https://accounts.google.com' : ''}`,
     `style-src 'self' 'unsafe-inline'`,
     `style-src-elem 'self' 'unsafe-inline'`,
     `style-src-attr 'unsafe-inline'`,
@@ -23,9 +28,14 @@ export function buildNonceRequestHeaders(input: {
   headers: Headers
   nonce: string
   googleEnabled: boolean
+  allowEval?: boolean
 }): Headers {
   const requestHeaders = new Headers(input.headers)
-  const csp = buildMissionControlCsp({ nonce: input.nonce, googleEnabled: input.googleEnabled })
+  const csp = buildMissionControlCsp({
+    nonce: input.nonce,
+    googleEnabled: input.googleEnabled,
+    allowEval: input.allowEval,
+  })
 
   requestHeaders.set('x-nonce', input.nonce)
   requestHeaders.set('Content-Security-Policy', csp)
