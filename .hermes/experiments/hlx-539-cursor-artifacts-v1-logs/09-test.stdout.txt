@@ -1,0 +1,10 @@
+
+> mission-control@2.2.0 test /Users/doctor/dev/mission-control
+> pnpm run verify:node && vitest run
+
+
+> mission-control@2.2.0 verify:node /Users/doctor/dev/mission-control
+> node scripts/check-node-version.mjs
+
+ ELIFECYCLE  Test failed. See above for more details.
+ WARN   Local package.json exists, but node_modules missing, did you mean to install?

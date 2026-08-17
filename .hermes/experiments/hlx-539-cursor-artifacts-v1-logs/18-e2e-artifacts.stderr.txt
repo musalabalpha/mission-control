@@ -1,0 +1,14 @@
+(node:58060) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] ⨯ The requested resource isn't a valid image for /brand/mc-logo-128.png received null
+[WebServer] ⨯ The requested resource isn't a valid image for /brand/claude-logo.png received null
+[WebServer] ⨯ The requested resource isn't a valid image for /brand/openclaw-logo.png received null
+[WebServer] ⨯ The requested resource isn't a valid image for /brand/codex-logo.png received null
+[WebServer] ⨯ The requested resource isn't a valid image for /brand/hermes-logo.png received null
+(node:58111) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] ⨯ The requested resource isn't a valid image for /brand/mc-logo-128.png received null
+[WebServer] ⨯ The requested resource isn't a valid image for /brand/claude-logo.png received null
+[WebServer] ⨯ The requested resource isn't a valid image for /brand/openclaw-logo.png received null
+[WebServer] ⨯ The requested resource isn't a valid image for /brand/codex-logo.png received null
+[WebServer] ⨯ The requested resource isn't a valid image for /brand/hermes-logo.png received null

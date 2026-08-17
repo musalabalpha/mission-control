@@ -1,0 +1,54 @@
+
+Running 2 tests using 1 worker
+
+  ✘  1 [chromium] › tests/artifacts-panel.spec.ts:34:7 › Artifacts panel › desktop: list, source, search, zone filter, preview contract (0ms)
+  ✘  2 [chromium] › tests/artifacts-panel.spec.ts:66:7 › Artifacts panel › mobile 390px: list, search, and preview stay usable (0ms)
+
+
+  1) [chromium] › tests/artifacts-panel.spec.ts:34:7 › Artifacts panel › desktop: list, source, search, zone filter, preview contract 
+
+    Error: browserType.launch: Executable doesn't exist at /Users/doctor/Library/Caches/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-mac-arm64/chrome-headless-shell
+    ╔════════════════════════════════════════════════════════════╗
+    ║ Looks like Playwright was just installed or updated.       ║
+    ║ Please run the following command to download new browsers: ║
+    ║                                                            ║
+    ║     pnpm exec playwright install                           ║
+    ║                                                            ║
+    ║ <3 Playwright Team                                         ║
+    ╚════════════════════════════════════════════════════════════╝
+
+    Error Context: test-results/artifacts-panel-Artifacts--56d12-one-filter-preview-contract-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/artifacts-panel-Artifacts--56d12-one-filter-preview-contract-chromium/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/artifacts-panel-Artifacts--56d12-one-filter-preview-contract-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [chromium] › tests/artifacts-panel.spec.ts:66:7 › Artifacts panel › mobile 390px: list, search, and preview stay usable 
+
+    Error: browserType.launch: Executable doesn't exist at /Users/doctor/Library/Caches/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-mac-arm64/chrome-headless-shell
+    ╔════════════════════════════════════════════════════════════╗
+    ║ Looks like Playwright was just installed or updated.       ║
+    ║ Please run the following command to download new browsers: ║
+    ║                                                            ║
+    ║     pnpm exec playwright install                           ║
+    ║                                                            ║
+    ║ <3 Playwright Team                                         ║
+    ╚════════════════════════════════════════════════════════════╝
+
+    Error Context: test-results/artifacts-panel-Artifacts--cdce0-rch-and-preview-stay-usable-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/artifacts-panel-Artifacts--cdce0-rch-and-preview-stay-usable-chromium/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/artifacts-panel-Artifacts--cdce0-rch-and-preview-stay-usable-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2 failed
+    [chromium] › tests/artifacts-panel.spec.ts:34:7 › Artifacts panel › desktop: list, source, search, zone filter, preview contract 
+    [chromium] › tests/artifacts-panel.spec.ts:66:7 › Artifacts panel › mobile 390px: list, search, and preview stay usable 

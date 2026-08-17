@@ -1,0 +1,70 @@
+
+Running 2 tests using 1 worker
+
+  ✘  1 [chromium] › tests/artifacts-panel.spec.ts:34:7 › Artifacts panel › desktop: list, source, search, zone filter, preview contract (1.0m)
+  ✘  2 [chromium] › tests/artifacts-panel.spec.ts:66:7 › Artifacts panel › mobile 390px: list, search, and preview stay usable (1.0m)
+
+
+  1) [chromium] › tests/artifacts-panel.spec.ts:34:7 › Artifacts panel › desktop: list, source, search, zone filter, preview contract 
+
+    Test timeout of 60000ms exceeded.
+
+    Error: page.waitForURL: Test timeout of 60000ms exceeded.
+    =========================== logs ===========================
+    waiting for navigation until "load"
+    ============================================================
+
+      22 |   await page.locator('#password').fill(TEST_PASS)
+      23 |   await page.locator('form').getByRole('button').click()
+    > 24 |   await page.waitForURL((url) => !url.pathname.includes('/login'))
+         |              ^
+      25 | }
+      26 |
+      27 | async function openArtifacts(page: Page) {
+        at dismissOnboardingAndLogin (/Users/doctor/dev/mission-control/tests/artifacts-panel.spec.ts:24:14)
+        at openArtifacts (/Users/doctor/dev/mission-control/tests/artifacts-panel.spec.ts:28:3)
+        at /Users/doctor/dev/mission-control/tests/artifacts-panel.spec.ts:36:5
+
+    Error Context: test-results/artifacts-panel-Artifacts--56d12-one-filter-preview-contract-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/artifacts-panel-Artifacts--56d12-one-filter-preview-contract-chromium/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/artifacts-panel-Artifacts--56d12-one-filter-preview-contract-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [chromium] › tests/artifacts-panel.spec.ts:66:7 › Artifacts panel › mobile 390px: list, search, and preview stay usable 
+
+    Test timeout of 60000ms exceeded.
+
+    Error: page.waitForURL: Test timeout of 60000ms exceeded.
+    =========================== logs ===========================
+    waiting for navigation until "load"
+    ============================================================
+
+      22 |   await page.locator('#password').fill(TEST_PASS)
+      23 |   await page.locator('form').getByRole('button').click()
+    > 24 |   await page.waitForURL((url) => !url.pathname.includes('/login'))
+         |              ^
+      25 | }
+      26 |
+      27 | async function openArtifacts(page: Page) {
+        at dismissOnboardingAndLogin (/Users/doctor/dev/mission-control/tests/artifacts-panel.spec.ts:24:14)
+        at openArtifacts (/Users/doctor/dev/mission-control/tests/artifacts-panel.spec.ts:28:3)
+        at /Users/doctor/dev/mission-control/tests/artifacts-panel.spec.ts:68:5
+
+    Error Context: test-results/artifacts-panel-Artifacts--cdce0-rch-and-preview-stay-usable-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/artifacts-panel-Artifacts--cdce0-rch-and-preview-stay-usable-chromium/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/artifacts-panel-Artifacts--cdce0-rch-and-preview-stay-usable-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2 failed
+    [chromium] › tests/artifacts-panel.spec.ts:34:7 › Artifacts panel › desktop: list, source, search, zone filter, preview contract 
+    [chromium] › tests/artifacts-panel.spec.ts:66:7 › Artifacts panel › mobile 390px: list, search, and preview stay usable 

@@ -1,0 +1,78 @@
+
+Running 2 tests using 1 worker
+
+  ✘  1 [chromium] › tests/artifacts-panel.spec.ts:36:7 › Artifacts panel › desktop: list, source, search, zone filter, preview contract (45.4s)
+  ✘  2 [chromium] › tests/artifacts-panel.spec.ts:68:7 › Artifacts panel › mobile 390px: list, search, and preview stay usable (45.4s)
+
+
+  1) [chromium] › tests/artifacts-panel.spec.ts:36:7 › Artifacts panel › desktop: list, source, search, zone filter, preview contract 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByRole('heading', { name: 'Artefactos' })
+    Expected: visible
+    Timeout: 45000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 45000ms
+      - waiting for getByRole('heading', { name: 'Artefactos' })
+
+
+      30 |   await dismissOnboardingAndLogin(page)
+      31 |   await page.goto('/artifacts')
+    > 32 |   await expect(page.getByRole('heading', { name: 'Artefactos' })).toBeVisible({ timeout: 45_000 })
+         |                                                                   ^
+      33 | }
+      34 |
+      35 | test.describe('Artifacts panel', () => {
+        at openArtifacts (/Users/doctor/dev/mission-control/tests/artifacts-panel.spec.ts:32:67)
+        at /Users/doctor/dev/mission-control/tests/artifacts-panel.spec.ts:38:5
+
+    Error Context: test-results/artifacts-panel-Artifacts--56d12-one-filter-preview-contract-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/artifacts-panel-Artifacts--56d12-one-filter-preview-contract-chromium/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/artifacts-panel-Artifacts--56d12-one-filter-preview-contract-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [chromium] › tests/artifacts-panel.spec.ts:68:7 › Artifacts panel › mobile 390px: list, search, and preview stay usable 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByRole('heading', { name: 'Artefactos' })
+    Expected: visible
+    Timeout: 45000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 45000ms
+      - waiting for getByRole('heading', { name: 'Artefactos' })
+
+
+      30 |   await dismissOnboardingAndLogin(page)
+      31 |   await page.goto('/artifacts')
+    > 32 |   await expect(page.getByRole('heading', { name: 'Artefactos' })).toBeVisible({ timeout: 45_000 })
+         |                                                                   ^
+      33 | }
+      34 |
+      35 | test.describe('Artifacts panel', () => {
+        at openArtifacts (/Users/doctor/dev/mission-control/tests/artifacts-panel.spec.ts:32:67)
+        at /Users/doctor/dev/mission-control/tests/artifacts-panel.spec.ts:70:5
+
+    Error Context: test-results/artifacts-panel-Artifacts--cdce0-rch-and-preview-stay-usable-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/artifacts-panel-Artifacts--cdce0-rch-and-preview-stay-usable-chromium/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/artifacts-panel-Artifacts--cdce0-rch-and-preview-stay-usable-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2 failed
+    [chromium] › tests/artifacts-panel.spec.ts:36:7 › Artifacts panel › desktop: list, source, search, zone filter, preview contract 
+    [chromium] › tests/artifacts-panel.spec.ts:68:7 › Artifacts panel › mobile 390px: list, search, and preview stay usable 

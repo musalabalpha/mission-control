@@ -1,0 +1,1 @@
+sh: vitest: command not found

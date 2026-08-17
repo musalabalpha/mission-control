@@ -1,0 +1,44 @@
+
+Running 2 tests using 1 worker
+
+  ✓  1 [chromium] › tests/artifacts-panel.spec.ts:41:7 › Artifacts panel › desktop: list, source, search, zone filter, preview contract (1.4s)
+  ✘  2 [chromium] › tests/artifacts-panel.spec.ts:73:7 › Artifacts panel › mobile 390px: list, search, and preview stay usable (45.3s)
+
+
+  1) [chromium] › tests/artifacts-panel.spec.ts:73:7 › Artifacts panel › mobile 390px: list, search, and preview stay usable 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByRole('navigation', { name: 'Main navigation' })
+    Expected: visible
+    Timeout: 45000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 45000ms
+      - waiting for getByRole('navigation', { name: 'Main navigation' })
+
+
+      30 |   await dismissOnboardingAndLogin(page)
+      31 |   await page.goto('/artifacts')
+    > 32 |   await expect(page.getByRole('navigation', { name: 'Main navigation' })).toBeVisible({ timeout: 45_000 })
+         |                                                                           ^
+      33 |   const switchToFull = page.getByRole('button', { name: /Switch to Full/i })
+      34 |   if (await switchToFull.isVisible()) {
+      35 |     await switchToFull.click()
+        at openArtifacts (/Users/doctor/dev/mission-control/tests/artifacts-panel.spec.ts:32:75)
+        at /Users/doctor/dev/mission-control/tests/artifacts-panel.spec.ts:75:5
+
+    Error Context: test-results/artifacts-panel-Artifacts--cdce0-rch-and-preview-stay-usable-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/artifacts-panel-Artifacts--cdce0-rch-and-preview-stay-usable-chromium/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/artifacts-panel-Artifacts--cdce0-rch-and-preview-stay-usable-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [chromium] › tests/artifacts-panel.spec.ts:73:7 › Artifacts panel › mobile 390px: list, search, and preview stay usable 
+  1 passed (47.8s)

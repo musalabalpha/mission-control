@@ -1,0 +1,7 @@
+
+Running 2 tests using 1 worker
+
+  ✓  1 [chromium] › tests/artifacts-panel.spec.ts:42:7 › Artifacts panel › desktop: list, source, search, zone filter, preview contract (1.4s)
+  ✓  2 [chromium] › tests/artifacts-panel.spec.ts:74:7 › Artifacts panel › mobile 390px: list, search, and preview stay usable (460ms)
+
+  2 passed (2.8s)

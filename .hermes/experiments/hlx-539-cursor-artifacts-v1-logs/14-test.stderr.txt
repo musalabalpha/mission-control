@@ -1,0 +1,3 @@
+stderr | src/lib/__tests__/device-identity-security.test.ts > device identity secure fallback > deletes a legacy plaintext key instead of importing it without secure persistence
+[WARN] DeviceIdentity: Removed legacy plaintext device private key; using an ephemeral identity
+

@@ -1,0 +1,205 @@
+
+> mission-control@2.2.0 build /Users/doctor/dev/mission-control
+> pnpm run verify:node && next build --webpack && pnpm artifact:prepare
+
+
+> mission-control@2.2.0 verify:node /Users/doctor/dev/mission-control
+> node scripts/check-node-version.mjs
+
+▲ Next.js 16.2.10 (webpack)
+- Environments: .env
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 20.5s
+  Running TypeScript ...
+  Finished TypeScript in 10.8s ...
+  Collecting page data using 13 workers ...
+  Generating static pages using 13 workers (0/123) ...
+  Generating static pages using 13 workers (30/123) 
+  Generating static pages using 13 workers (61/123) 
+  Generating static pages using 13 workers (92/123) 
+✓ Generating static pages using 13 workers (123/123) in 430ms
+  Finalizing page optimization ...
+  Collecting build traces ...
+
+Route (app)                               Revalidate  Expire
+┌ ƒ /_not-found
+├ ƒ /[[...panel]]
+├ ƒ /api/activities
+├ ƒ /api/adapters
+├ ƒ /api/agent-runtimes
+├ ƒ /api/agents
+├ ƒ /api/agents/[id]
+├ ƒ /api/agents/[id]/attribution
+├ ƒ /api/agents/[id]/diagnostics
+├ ƒ /api/agents/[id]/files
+├ ƒ /api/agents/[id]/heartbeat
+├ ƒ /api/agents/[id]/hide
+├ ƒ /api/agents/[id]/keys
+├ ƒ /api/agents/[id]/memory
+├ ƒ /api/agents/[id]/soul
+├ ƒ /api/agents/[id]/wake
+├ ƒ /api/agents/comms
+├ ƒ /api/agents/evals
+├ ƒ /api/agents/message
+├ ƒ /api/agents/optimize
+├ ƒ /api/agents/register
+├ ƒ /api/agents/sync
+├ ƒ /api/alerts
+├ ƒ /api/artifacts
+├ ƒ /api/audit
+├ ƒ /api/auth/access-requests
+├ ƒ /api/auth/google
+├ ƒ /api/auth/google/disconnect
+├ ƒ /api/auth/login
+├ ƒ /api/auth/logout
+├ ƒ /api/auth/me
+├ ƒ /api/auth/users
+├ ƒ /api/backup
+├ ƒ /api/bandeja
+├ ƒ /api/builder
+├ ƒ /api/capabilities
+├ ƒ /api/channels
+├ ƒ /api/chat/conversations
+├ ƒ /api/chat/messages
+├ ƒ /api/chat/messages/[id]
+├ ƒ /api/chat/session-prefs
+├ ƒ /api/claude-tasks
+├ ƒ /api/claude/sessions
+├ ƒ /api/cleanup
+├ ƒ /api/connect
+├ ƒ /api/cron
+├ ƒ /api/debug
+├ ƒ /api/diagnostics
+├ ƒ /api/docs
+├ ƒ /api/docs/content
+├ ƒ /api/docs/search
+├ ƒ /api/docs/tree
+├ ƒ /api/events
+├ ƒ /api/exec-approvals
+├ ƒ /api/export
+├ ƒ /api/frameworks
+├ ƒ /api/gateway-config
+├ ƒ /api/gateways
+├ ƒ /api/gateways/connect
+├ ƒ /api/gateways/control
+├ ƒ /api/gateways/discover
+├ ƒ /api/gateways/health
+├ ƒ /api/gateways/health/history
+├ ƒ /api/github
+├ ƒ /api/github/sync
+├ ƒ /api/gnap
+├ ƒ /api/goals-inventory
+├ ƒ /api/health
+├ ƒ /api/hermes
+├ ƒ /api/hermes/events
+├ ƒ /api/hermes/memory
+├ ƒ /api/hermes/tasks
+├ ○ /api/index                                    5m      1y
+├ ƒ /api/integrations
+├ ƒ /api/launchd
+├ ƒ /api/local/agents-doc
+├ ƒ /api/local/flight-deck
+├ ƒ /api/local/terminal
+├ ƒ /api/logs
+├ ƒ /api/mcp-audit/verify
+├ ƒ /api/memory
+├ ƒ /api/memory/context
+├ ƒ /api/memory/graph
+├ ƒ /api/memory/health
+├ ƒ /api/memory/links
+├ ƒ /api/memory/process
+├ ƒ /api/memory/search
+├ ƒ /api/mentions
+├ ƒ /api/nodes
+├ ƒ /api/notifications
+├ ƒ /api/notifications/deliver
+├ ƒ /api/onboarding
+├ ƒ /api/openclaw/doctor
+├ ƒ /api/openclaw/update
+├ ƒ /api/openclaw/version
+├ ƒ /api/pipelines
+├ ƒ /api/pipelines/run
+├ ƒ /api/projects
+├ ƒ /api/projects/[id]
+├ ƒ /api/projects/[id]/agents
+├ ƒ /api/projects/[id]/tasks
+├ ƒ /api/pty/attach
+├ ƒ /api/pty/setup
+├ ƒ /api/quality-review
+├ ƒ /api/quests
+├ ƒ /api/releases/check
+├ ƒ /api/releases/update
+├ ƒ /api/rooms
+├ ƒ /api/schedule-parse
+├ ƒ /api/scheduler
+├ ƒ /api/search
+├ ƒ /api/security-audit
+├ ƒ /api/security-scan
+├ ƒ /api/security-scan/agent
+├ ƒ /api/security-scan/fix
+├ ƒ /api/sessions
+├ ƒ /api/sessions/[id]/control
+├ ƒ /api/sessions/continue
+├ ƒ /api/sessions/transcript
+├ ƒ /api/sessions/transcript/aggregate
+├ ƒ /api/sessions/transcript/gateway
+├ ƒ /api/settings
+├ ƒ /api/setup
+├ ƒ /api/skills
+├ ƒ /api/skills/registry
+├ ƒ /api/spawn
+├ ƒ /api/standup
+├ ƒ /api/status
+├ ƒ /api/super/os-users
+├ ƒ /api/super/provision-jobs
+├ ƒ /api/super/provision-jobs/[id]
+├ ƒ /api/super/provision-jobs/[id]/run
+├ ƒ /api/super/tenants
+├ ƒ /api/super/tenants/[id]/decommission
+├ ƒ /api/system-inventory
+├ ƒ /api/system-monitor
+├ ƒ /api/tasks
+├ ƒ /api/tasks/[id]
+├ ƒ /api/tasks/[id]/branch
+├ ƒ /api/tasks/[id]/broadcast
+├ ƒ /api/tasks/[id]/comments
+├ ƒ /api/tasks/outcomes
+├ ƒ /api/tasks/queue
+├ ƒ /api/tasks/regression
+├ ƒ /api/tokens
+├ ƒ /api/tokens/by-agent
+├ ƒ /api/tokens/rotate
+├ ƒ /api/v1/evals/leaderboard
+├ ƒ /api/v1/runs
+├ ƒ /api/v1/runs/[run_id]
+├ ƒ /api/v1/runs/[run_id]/eval
+├ ƒ /api/v1/runs/[run_id]/provenance
+├ ƒ /api/v1/runs/stream
+├ ƒ /api/webhooks
+├ ƒ /api/webhooks/deliveries
+├ ƒ /api/webhooks/retry
+├ ƒ /api/webhooks/test
+├ ƒ /api/webhooks/verify-docs
+├ ƒ /api/workflows
+├ ƒ /api/workload
+├ ƒ /api/workspaces
+├ ƒ /api/workspaces/[id]
+├ ○ /apple-icon.png
+├ ƒ /docs
+├ ƒ /health
+├ ○ /icon.png
+├ ƒ /login
+└ ƒ /setup
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+
+> mission-control@2.2.0 artifact:prepare /Users/doctor/dev/mission-control
+> node scripts/prepare-standalone-artifact.mjs
+
+Prepared standalone artifact with release-only repository files

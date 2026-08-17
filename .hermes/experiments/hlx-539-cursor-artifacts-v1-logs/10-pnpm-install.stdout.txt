@@ -1,0 +1,72 @@
+Lockfile is up to date, resolution step is skipped
+Progress: resolved 1, reused 0, downloaded 0, added 0
+Packages: +985
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+   ╭──────────────────────────────────────────╮
+   │                                          │
+   │   Update available! 10.29.3 → 11.22.0.   │
+   │   Changelog: https://pnpm.io/v/11.22.0   │
+   │     To update, run: pnpm add -g pnpm     │
+   │                                          │
+   ╰──────────────────────────────────────────╯
+
+Progress: resolved 985, reused 985, downloaded 0, added 231
+Progress: resolved 985, reused 985, downloaded 0, added 730
+Progress: resolved 985, reused 985, downloaded 0, added 981
+Progress: resolved 985, reused 985, downloaded 0, added 982
+Progress: resolved 985, reused 985, downloaded 0, added 985, done
+
+dependencies:
++ @radix-ui/react-slot 1.3.0
++ @scalar/api-reference-react 0.9.53
++ @tailwindcss/postcss 4.3.2
++ @xterm/addon-fit 0.11.0
++ @xterm/addon-web-links 0.12.0
++ @xterm/xterm 6.0.0
++ better-sqlite3 12.11.1
++ class-variance-authority 0.7.1
++ clsx 2.1.1
++ eslint 9.39.4
++ eslint-config-next 16.2.10
++ next 16.2.10
++ next-intl 4.13.1
++ next-themes 0.4.6
++ node-pty 1.1.0
++ pino 10.3.1
++ postcss 8.5.16
++ react 19.2.7
++ react-dom 19.2.7
++ react-markdown 10.1.0
++ reagraph 4.32.0
++ recharts 3.9.2
++ remark-gfm 4.0.1
++ tailwind-merge 3.6.0
++ tailwindcss 4.3.2
++ typescript 5.9.3
++ ws 8.21.0
++ zod 4.4.3
++ zustand 5.0.14
+
+devDependencies:
++ @playwright/test 1.61.1
++ @testing-library/dom 10.4.1
++ @testing-library/jest-dom 6.9.1
++ @testing-library/react 16.3.2
++ @types/better-sqlite3 7.6.13
++ @types/node 26.1.0
++ @types/react 19.2.17
++ @types/react-dom 19.2.3
++ @types/ws 8.18.1
++ @vitejs/plugin-react 4.7.0
++ @vitest/coverage-v8 3.2.7
++ fast-check 4.9.0
++ jsdom 29.1.1
++ pino-pretty 13.1.3
++ vite 6.4.3
++ vite-tsconfig-paths 6.1.1
++ vitest 3.2.7
+
+. postinstall$ node -e "try{require('better-sqlite3')}catch(e){if(e.code==='ERR_DLOPEN_FAILED'||/NODE_MODULE_VERSION/.test(e.message)){console.error('\n⚠  better-sqlite3 compiled for wrong Node version. Run: pnpm rebuild better-sqlite3\n');process.exit(1)}}"
+. postinstall: Done
+Done in 4.9s using pnpm v10.29.3

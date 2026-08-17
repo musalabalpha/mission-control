@@ -1,0 +1,8 @@
+(node:54136) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] ⨯ The requested resource isn't a valid image for /brand/mc-logo-128.png received null
+[WebServer] ⨯ The requested resource isn't a valid image for /brand/mc-logo-128.png received null
+(node:54720) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] ⨯ The requested resource isn't a valid image for /brand/mc-logo-128.png received null
+[WebServer] ⨯ The requested resource isn't a valid image for /brand/mc-logo-128.png received null

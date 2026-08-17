@@ -1,0 +1,15 @@
+
+> mission-control@2.2.0 artifact:check /Users/doctor/dev/mission-control
+> node scripts/check-standalone-artifact.mjs
+
+{
+  "artifact": ".next/standalone",
+  "boundaryFilesChecked": 41,
+  "requiredFiles": [
+    "server.js",
+    "openapi.json",
+    "ops/templates/openclaw-gateway@.service",
+    "src/lib/schema.sql"
+  ],
+  "status": "ok"
+}

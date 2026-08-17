@@ -1,0 +1,17 @@
+ ...026-08-16_151500-hlx-539-artifacts-v1-cursor.md | 760 +++++++++++++++++++++
+ playwright.config.ts                               |   5 +
+ scripts/e2e-openclaw/start-e2e-server.mjs          |  22 +
+ src/app/api/artifacts/route.ts                     |  46 +-
+ src/app/layout.tsx                                 |   1 +
+ .../panels/__tests__/artifacts-panel.test.tsx      | 183 +++++
+ src/components/panels/artifacts-panel.tsx          | 279 ++++++--
+ src/lib/__tests__/artifacts-index.test.ts          | 197 ++++++
+ src/lib/__tests__/artifacts-route.test.ts          |  72 ++
+ src/lib/__tests__/csp.test.ts                      |  16 +
+ src/lib/artifacts-index.ts                         | 207 ++++++
+ src/lib/csp.ts                                     |  21 +-
+ src/proxy.ts                                       |   7 +-
+ tests/artifacts-panel.spec.ts                      |  93 +++
+ tests/fixtures/artifacts-v1/docs/spec-file.html    |   5 +
+ tests/fixtures/artifacts-v1/live/panel-vivo.html   |   5 +
+ 16 files changed, 1818 insertions(+), 101 deletions(-)

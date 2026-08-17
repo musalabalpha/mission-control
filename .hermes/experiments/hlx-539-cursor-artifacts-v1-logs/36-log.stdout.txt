@@ -1,0 +1,8 @@
+5c40d24 test(e2e): cover artifacts discovery and preview flow
+8ac68e2 fix(csp): allow eval in development so the Next overlay can render
+8d27693 test(security): pin artifact preview CSP and sandbox
+bed090b feat(artifacts): expose source freshness and degraded state
+aab1ae9 refactor(artifacts): isolate authenticated index BFF
+941c1a2 test(artifacts): lock read-only index contract
+55a5b18 docs(artifacts): add Cursor execution plan
+f690d48 wip: panel de artifacts + endurecimiento de CSP

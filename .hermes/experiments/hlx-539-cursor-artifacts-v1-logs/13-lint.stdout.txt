@@ -1,0 +1,36 @@
+
+> mission-control@2.2.0 lint /Users/doctor/dev/mission-control
+> pnpm run verify:node && eslint .
+
+
+> mission-control@2.2.0 verify:node /Users/doctor/dev/mission-control
+> node scripts/check-node-version.mjs
+
+
+/Users/doctor/dev/mission-control/src/components/layout/openclaw-doctor-banner.tsx
+  37:33  warning  Use apiFetch<T>() from '@/lib/api-client' instead of bare fetch('/api/...'). It handles 401 redirect, 403/5xx typed errors, and network failures uniformly  no-restricted-syntax
+
+/Users/doctor/dev/mission-control/src/components/panels/artifacts-panel.tsx
+  46:31  warning  Use apiFetch<T>() from '@/lib/api-client' instead of bare fetch('/api/...'). It handles 401 redirect, 403/5xx typed errors, and network failures uniformly  no-restricted-syntax
+
+/Users/doctor/dev/mission-control/src/components/panels/cockpit-panel.tsx
+  94:31  warning  Use apiFetch<T>() from '@/lib/api-client' instead of bare fetch('/api/...'). It handles 401 redirect, 403/5xx typed errors, and network failures uniformly  no-restricted-syntax
+
+/Users/doctor/dev/mission-control/src/components/panels/github-prs-panel.tsx
+  53:31  warning  Use apiFetch<T>() from '@/lib/api-client' instead of bare fetch('/api/...'). It handles 401 redirect, 403/5xx typed errors, and network failures uniformly  no-restricted-syntax
+  67:31  warning  Use apiFetch<T>() from '@/lib/api-client' instead of bare fetch('/api/...'). It handles 401 redirect, 403/5xx typed errors, and network failures uniformly  no-restricted-syntax
+
+/Users/doctor/dev/mission-control/src/components/panels/launchd-fleet.tsx
+  31:31  warning  Use apiFetch<T>() from '@/lib/api-client' instead of bare fetch('/api/...'). It handles 401 redirect, 403/5xx typed errors, and network failures uniformly  no-restricted-syntax
+  47:31  warning  Use apiFetch<T>() from '@/lib/api-client' instead of bare fetch('/api/...'). It handles 401 redirect, 403/5xx typed errors, and network failures uniformly  no-restricted-syntax
+  61:17  warning  Use apiFetch<T>() from '@/lib/api-client' instead of bare fetch('/api/...'). It handles 401 redirect, 403/5xx typed errors, and network failures uniformly  no-restricted-syntax
+
+/Users/doctor/dev/mission-control/src/components/panels/quests-panel.tsx
+  50:31  warning  Use apiFetch<T>() from '@/lib/api-client' instead of bare fetch('/api/...'). It handles 401 redirect, 403/5xx typed errors, and network failures uniformly  no-restricted-syntax
+
+/Users/doctor/dev/mission-control/src/components/panels/system-panel.tsx
+  100:31  warning  Use apiFetch<T>() from '@/lib/api-client' instead of bare fetch('/api/...'). It handles 401 redirect, 403/5xx typed errors, and network failures uniformly  no-restricted-syntax
+  112:31  warning  Use apiFetch<T>() from '@/lib/api-client' instead of bare fetch('/api/...'). It handles 401 redirect, 403/5xx typed errors, and network failures uniformly  no-restricted-syntax
+
+✖ 11 problems (0 errors, 11 warnings)
+

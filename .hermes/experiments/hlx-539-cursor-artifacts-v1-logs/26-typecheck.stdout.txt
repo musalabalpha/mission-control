@@ -1,0 +1,8 @@
+
+> mission-control@2.2.0 typecheck /Users/doctor/dev/mission-control
+> pnpm run verify:node && tsc --noEmit
+
+
+> mission-control@2.2.0 verify:node /Users/doctor/dev/mission-control
+> node scripts/check-node-version.mjs
+

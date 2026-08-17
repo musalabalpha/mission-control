@@ -1,0 +1,10 @@
+
+ RUN  v3.2.7 /Users/doctor/dev/mission-control
+
+ ✓ src/components/panels/__tests__/artifacts-panel.test.tsx (8 tests) 193ms
+
+ Test Files  1 passed (1)
+      Tests  8 passed (8)
+   Start at  19:04:10
+   Duration  705ms (transform 38ms, setup 24ms, collect 80ms, tests 193ms, environment 249ms, prepare 29ms)
+

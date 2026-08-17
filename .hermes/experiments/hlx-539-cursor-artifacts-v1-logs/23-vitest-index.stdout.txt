@@ -1,0 +1,10 @@
+
+ RUN  v3.2.7 /Users/doctor/dev/mission-control
+
+ ✓ src/lib/__tests__/artifacts-index.test.ts (14 tests) 11ms
+
+ Test Files  1 passed (1)
+      Tests  14 passed (14)
+   Start at  19:04:09
+   Duration  548ms (transform 26ms, setup 30ms, collect 20ms, tests 11ms, environment 313ms, prepare 33ms)
+
