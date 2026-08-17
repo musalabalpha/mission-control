@@ -247,6 +247,28 @@ if (!fs.existsSync(buildIdPath)) {
   await runBlocking('pnpm', ['build'])
 }
 
+function syncStandaloneAssets() {
+  const standaloneDir = path.join(repoRoot, '.next', 'standalone')
+  if (!fs.existsSync(path.join(standaloneDir, 'server.js'))) return
+
+  const sourceStatic = path.join(repoRoot, '.next', 'static')
+  const destStatic = path.join(standaloneDir, '.next', 'static')
+  const sourcePublic = path.join(repoRoot, 'public')
+  const destPublic = path.join(standaloneDir, 'public')
+
+  if (fs.existsSync(sourceStatic)) {
+    fs.rmSync(destStatic, { recursive: true, force: true })
+    fs.mkdirSync(path.dirname(destStatic), { recursive: true })
+    fs.cpSync(sourceStatic, destStatic, { recursive: true })
+  }
+  if (fs.existsSync(sourcePublic)) {
+    fs.rmSync(destPublic, { recursive: true, force: true })
+    fs.cpSync(sourcePublic, destPublic, { recursive: true })
+  }
+}
+
+syncStandaloneAssets()
+
 const standaloneServerPath = findStandaloneServer(repoRoot)
 
 app = standaloneServerPath && fs.existsSync(standaloneServerPath)

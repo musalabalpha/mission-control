@@ -1,4 +1,7 @@
+import path from 'node:path'
 import { defineConfig, devices } from '@playwright/test'
+
+const artifactsFixtureDir = path.resolve('tests/fixtures/artifacts-v1')
 
 export default defineConfig({
   testDir: 'tests',
@@ -33,6 +36,8 @@ export default defineConfig({
       API_KEY: process.env.API_KEY || 'test-api-key-e2e-12345',
       AUTH_USER: process.env.AUTH_USER || 'testadmin',
       AUTH_PASS: process.env.AUTH_PASS || 'testpass1234!',
+      ARTIFACTS_DIR: process.env.ARTIFACTS_DIR || artifactsFixtureDir,
+      MC_ARTIFACTS_URL: process.env.MC_ARTIFACTS_URL || 'http://127.0.0.1:8446',
     },
   }
 })
