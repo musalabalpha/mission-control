@@ -3,17 +3,10 @@
 // Panel Artefactos (nav izq MC): biblioteca por zonas de ~/artifacts.
 // Preview embebe artifacts-server (:8446 /a/…); abrir interactivo usa /v/….
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { apiFetch } from '@/lib/api-client'
+import type { ArtifactIndexV1, ArtifactSummaryV1 } from '@/lib/artifacts-index'
 import { useSmartPoll } from '@/lib/use-smart-poll'
-
-interface Artifact {
-  name: string
-  title: string
-  zone: string
-  updatedAt: number
-  url: string
-  previewUrl: string
-}
 
 interface ZoneInfo {
   id: string
@@ -31,8 +24,17 @@ function timeAgo(epochSec: number): string {
   return `hace ${Math.floor(h / 24)} d`
 }
 
+function consultedAgo(generatedAtMs: number): string {
+  const mins = Math.floor((Date.now() - generatedAtMs) / 60000)
+  if (mins < 1) return 'ahora'
+  if (mins < 60) return `hace ${mins} min`
+  const h = Math.floor(mins / 60)
+  if (h < 48) return `hace ${h} h`
+  return `hace ${Math.floor(h / 24)} d`
+}
+
 export function ArtifactsPanel() {
-  const [artifacts, setArtifacts] = useState<Artifact[] | null>(null)
+  const [artifacts, setArtifacts] = useState<ArtifactSummaryV1[] | null>(null)
   const [zones, setZones] = useState<ZoneInfo[]>([])
   const [galleryUrl, setGalleryUrl] = useState('')
   const [notice, setNotice] = useState<string | null>(null)
@@ -40,24 +42,34 @@ export function ArtifactsPanel() {
   const [query, setQuery] = useState('')
   const [zone, setZone] = useState('')
   const [selected, setSelected] = useState<string | null>(null)
+  const [generatedAt, setGeneratedAt] = useState<number | null>(null)
+  const [status, setStatus] = useState<'ok' | 'degraded'>('ok')
+  const [stale, setStale] = useState(false)
+  const hasDataRef = useRef(false)
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch('/api/artifacts')
-      const data = await res.json()
-      if (data.error) setNotice(data.error)
-      else setNotice(null)
-      const list: Artifact[] = data.artifacts ?? []
+      const data = await apiFetch<ArtifactIndexV1>('/api/artifacts')
+      const list = data.artifacts ?? []
       setArtifacts(list)
       setZones(data.zones ?? [])
       setGalleryUrl(data.galleryUrl ?? '')
+      setNotice(data.notice ?? null)
+      setGeneratedAt(data.generatedAt ?? Date.now())
+      setStatus(data.status === 'degraded' ? 'degraded' : 'ok')
+      setStale(false)
       setError(null)
+      hasDataRef.current = true
       setSelected(prev => {
         if (prev && list.some(a => a.name === prev)) return prev
         return list[0]?.name ?? null
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar artefactos')
+      if (hasDataRef.current) {
+        setStatus('degraded')
+        setStale(true)
+      }
     }
   }, [])
 
@@ -104,6 +116,11 @@ export function ArtifactsPanel() {
                 {artifacts ? `${filtered.length} de ${artifacts.length}` : '…'}
                 {zone ? ` · ${zoneLabel(zone)}` : ''}
               </p>
+              {generatedAt != null && (
+                <p className="text-xs text-muted-foreground">
+                  Fuente: Artifacts Server · actualizado {consultedAgo(generatedAt)}
+                </p>
+              )}
             </div>
             {galleryUrl && (
               <a
@@ -117,6 +134,9 @@ export function ArtifactsPanel() {
             )}
           </div>
 
+          <label htmlFor="artifacts-search" className="sr-only">
+            Buscar artefactos
+          </label>
           <input
             id="artifacts-search"
             type="search"
@@ -160,9 +180,14 @@ export function ArtifactsPanel() {
           </div>
         </div>
 
-        {notice && (
-          <div className="mx-4 mt-3 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
-            {notice}
+        {(status === 'degraded' || notice || stale) && (
+          <div
+            role="status"
+            className="mx-4 mt-3 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning"
+          >
+            Degradado
+            {notice ? ` · ${notice}` : ''}
+            {stale ? ' · datos anteriores, no actualizados' : ''}
           </div>
         )}
         {error && <p className="px-4 pt-3 text-sm text-destructive">{error}</p>}
