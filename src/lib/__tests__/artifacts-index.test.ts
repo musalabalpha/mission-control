@@ -139,6 +139,53 @@ describe('buildArtifactIndex characterization', () => {
     expect(names).toEqual(['live/once.html'])
     expect(new Set(names).size).toBe(names.length)
   })
+
+  it('assigns HTML in log/incidentes to zone log/incidentes', () => {
+    const dir = makeDir()
+    writeHtml(join(dir, 'log', 'incidentes', 'incidente-20260815T2003.html'), 'Incidente')
+    const result = index(dir)
+    expect(result.artifacts[0]).toMatchObject({
+      name: 'log/incidentes/incidente-20260815T2003.html',
+      zone: 'log/incidentes',
+    })
+  })
+})
+
+describe('buildArtifactIndex decision exclusion', () => {
+  it('excludes log/decisiones entirely: no zone, no artifacts, not indexed even if present on disk', () => {
+    const dir = makeDir()
+    writeHtml(join(dir, 'log', 'decisiones', 'decisiones-2026-08-24.html'), 'Decisiones')
+    writeHtml(join(dir, 'live', 'panel.html'), 'Panel')
+    const result = index(dir)
+    expect(result.artifacts.map(a => a.name)).toEqual(['live/panel.html'])
+    expect(result.zones.some(z => z.id === 'log/decisiones')).toBe(false)
+  })
+
+  it('excludes daily decision consoles at root (decisiones-YYYY-MM-DD.html)', () => {
+    const dir = makeDir()
+    writeHtml(join(dir, 'decisiones-2026-08-24.html'), 'Decisiones del día')
+    writeHtml(join(dir, 'decisiones-musa-2026-07-14.html'), 'Decisiones musa')
+    writeHtml(join(dir, 'panel-vivo.html'), 'Panel vivo')
+    const result = index(dir)
+    expect(result.artifacts.map(a => a.name)).toEqual(['panel-vivo.html'])
+  })
+
+  it('does not exclude unrelated root HTML that merely contains "decisiones" mid-name', () => {
+    const dir = makeDir()
+    writeHtml(join(dir, 'resumen-decisiones-semana.html'), 'Resumen')
+    const result = index(dir)
+    expect(result.artifacts.map(a => a.name)).toEqual(['resumen-decisiones-semana.html'])
+  })
+
+  it('keeps log/incidentes indexed and separate from the decisiones exclusion', () => {
+    const dir = makeDir()
+    writeHtml(join(dir, 'log', 'decisiones', 'decisiones-2026-08-24.html'), 'Decisiones')
+    writeHtml(join(dir, 'log', 'incidentes', 'incidente-20260815T2003.html'), 'Incidente')
+    const result = index(dir)
+    expect(result.artifacts.map(a => a.name)).toEqual([
+      'log/incidentes/incidente-20260815T2003.html',
+    ])
+  })
 })
 
 describe('buildArtifactIndex V1 contract', () => {

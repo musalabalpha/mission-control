@@ -3,7 +3,6 @@ import path from 'node:path'
 
 export type ArtifactZone =
   | 'live'
-  | 'log/decisiones'
   | 'log/incidentes'
   | 'docs'
   | 'radares'
@@ -41,7 +40,6 @@ export interface BuildArtifactIndexInput {
 
 const SCAN_ZONES = [
   { id: 'live', label: 'Vivos', blurb: 'Paneles que abres seguido' },
-  { id: 'log/decisiones', label: 'Decisiones', blurb: 'Diario' },
   { id: 'log/incidentes', label: 'Incidentes', blurb: 'Postmortems' },
   { id: 'docs', label: 'Docs', blurb: 'Specs y propuestas' },
   { id: 'radares', label: 'Radares', blurb: 'Sectoriales / SOFOM' },
@@ -75,6 +73,12 @@ function encodeRel(rel: string): string {
 
 function shouldSkipName(name: string): boolean {
   return name.startsWith('.') || SKIP.has(name)
+}
+
+const DAILY_DECISION_CONSOLE = /^decisiones-.*\.html$/i
+
+function isRootDecisionConsole(name: string): boolean {
+  return DAILY_DECISION_CONSOLE.test(name)
 }
 
 function zoneOf(rel: string): ArtifactZone {
@@ -130,6 +134,7 @@ function listArtifactRels(artifactsDir: string): string[] | null {
 
   for (const ent of rootEntries) {
     if (shouldSkipName(ent.name) || !ent.name.endsWith('.html')) continue
+    if (isRootDecisionConsole(ent.name)) continue
     if (ent.isFile()) found.push(ent.name)
   }
 
