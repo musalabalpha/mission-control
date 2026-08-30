@@ -142,8 +142,10 @@ async function loadLaunchdFallback(): Promise<CronJob[] | null> {
   return canon.map(c => {
     const st = stateByName.get(normalizeCronName(c.name))
     const exit = st?.exitCode
+    // exit 2 en linear-guard = violaciones de constitución (gate), no error del cron
+    const findings = exit === 2 && c.name.includes('linear-guard')
     const lastStatus =
-      exit == null ? undefined : exit === 0 ? 'success' : 'error'
+      exit == null ? undefined : exit === 0 || findings ? 'success' : 'error'
     return {
       id: c.name,
       name: c.name,

@@ -131,7 +131,10 @@ export function SystemPanel() {
   }
 
   const staleness = Date.now() / 1000 - data.collectedAt
-  const cronsFail = data.crons.filter(c => c.exitCode !== null && c.exitCode !== 0).length
+  // exit 2 en linear-guard = violaciones de constitución encontradas, no cron roto
+  const isFindings = (c: { exitCode: number | null; label: string }) =>
+    c.exitCode === 2 && c.label.includes('linear-guard')
+  const cronsFail = data.crons.filter(c => c.exitCode !== null && c.exitCode !== 0 && !isFindings(c)).length
 
   return (
     <div className="p-4 md:p-6 space-y-4">
@@ -197,6 +200,8 @@ export function SystemPanel() {
                       <Badge tone="err">no cargado</Badge>
                     ) : cron.exitCode === null ? (
                       <Badge tone="muted">sin corridas</Badge>
+                    ) : isFindings(cron) ? (
+                      <Badge tone="warn">violaciones</Badge>
                     ) : cron.exitCode !== 0 ? (
                       <Badge tone="err">exit {cron.exitCode}</Badge>
                     ) : (
