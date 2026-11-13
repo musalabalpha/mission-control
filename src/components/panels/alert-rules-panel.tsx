@@ -68,6 +68,7 @@ export function AlertRulesPanel() {
   const t = useTranslations('alertRules')
   const [rules, setRules] = useState<AlertRule[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [showCreate, setShowCreate] = useState(false)
   const [evalResults, setEvalResults] = useState<EvalResult[] | null>(null)
   const [evaluating, setEvaluating] = useState(false)
@@ -76,7 +77,11 @@ export function AlertRulesPanel() {
     try {
       const data = await apiFetch<AlertRulesData>('/api/alerts')
       setRules(data.rules || [])
-    } catch { /* ignore */ }
+      setLoadError(false)
+    } catch {
+      // No mostrar «sin reglas» si en realidad no se pudieron cargar.
+      setLoadError(true)
+    }
     setLoading(false)
   }, [])
 
@@ -208,8 +213,13 @@ export function AlertRulesPanel() {
       )}
 
       {/* Rules List */}
+      {!loading && loadError && rules.length > 0 && (
+        <div role="alert" className="text-xs text-red-400">{t('networkError')}</div>
+      )}
       {loading ? (
         <div className="text-center text-xs text-muted-foreground py-8">{t('loadingRules')}</div>
+      ) : loadError && rules.length === 0 ? (
+        <div role="alert" className="text-center text-xs text-red-400 py-8">{t('networkError')}</div>
       ) : rules.length === 0 ? (
         <div className="text-center py-12 bg-card border border-border rounded-lg">
           <div className="text-3xl mb-2 opacity-30">&#9888;</div>

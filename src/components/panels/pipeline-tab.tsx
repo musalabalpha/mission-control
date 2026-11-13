@@ -179,7 +179,8 @@ export function PipelineTab() {
     try {
       await apiFetch<Response>(`/api/pipelines?id=${id}`, { method: 'DELETE', raw: true })
     } catch (err) {
-      if (isPipelineNetworkFailure(err)) return
+      setResult({ ok: false, text: pipelineError(err, isPipelineNetworkFailure(err) ? 'Network error' : 'Failed') })
+      return
     }
     if (expandedId === id) setExpandedId(null)
     fetchData()
