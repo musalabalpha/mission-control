@@ -1237,6 +1237,7 @@ function TaskDetailModal({
   const [reviewStatus, setReviewStatus] = useState<'approved' | 'rejected'>('approved')
   const [reviewNotes, setReviewNotes] = useState('')
   const [reviewError, setReviewError] = useState<string | null>(null)
+  const [assignError, setAssignError] = useState<string | null>(null)
   const mentionTargets = useMentionTargets()
   const [activeTab, setActiveTab] = useState<'details' | 'comments' | 'quality' | 'session'>('details')
   const [reviewer, setReviewer] = useState('aegis')
@@ -1271,6 +1272,8 @@ function TaskDetailModal({
   useEffect(() => {
     commentsLoadedRef.current = false
   }, [task.id])
+
+  useEffect(() => { setAssignError(null) }, [task.id])
 
   useEffect(() => {
     fetchComments()
@@ -1599,6 +1602,7 @@ function TaskDetailModal({
                   value={task.assigned_to || ''}
                   onChange={async (e) => {
                     const newAssignee = e.target.value || null
+                    setAssignError(null)
                     try {
                       // raw:true preserves the !res.ok gate so onUpdate only runs on success.
                       const res = await apiFetch<Response>(`/api/tasks/${task.id}`, {
@@ -1609,7 +1613,8 @@ function TaskDetailModal({
                       if (!res.ok) throw new Error('Failed to assign')
                       onUpdate()
                     } catch {
-                      // silently fail — onUpdate will refresh state
+                      // onUpdate no corre en fallo: el select vuelve solo, hay que avisar.
+                      setAssignError('Failed to assign task')
                     }
                   }}
                 >
@@ -1620,6 +1625,7 @@ function TaskDetailModal({
                 </select>
                 {task.assigned_to && <AgentAvatar name={task.assigned_to} size="xs" />}
               </div>
+              {assignError && <p role="alert" className="text-xs text-red-400">{assignError}</p>}
 
               {task.status === 'failed' && task.error_message && (
                 <div className="rounded-lg border border-red-500/25 bg-red-500/10 p-3">
