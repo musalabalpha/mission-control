@@ -8,7 +8,7 @@ import { requireRole } from '@/lib/auth'
 // por rooms-gen.sh (helix-ecosystem). MC es espejo, nunca fuente canónica —
 // este route solo lee el JSON horneado, no llama a Linear ni almacena room_id.
 const OUTPUT_DIR =
-  process.env.HELIX_NEWGAME_DIR || path.join(config.openclawStateDir, 'workspace', 'output')
+  process.env.HELIX_OUTPUT_DIR || path.join(config.openclawStateDir, 'workspace', 'output')
 
 interface RoomIssue {
   identifier: string
